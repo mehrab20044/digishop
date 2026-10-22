@@ -1,0 +1,55 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+
+{% if conflict %}
+    <h2>تنظیمات سئو تغییر کرده‌اند</h2>
+
+    <p>
+        شخص دیگری تنظیمات را تغییر داده است.
+        برای جلوگیری از بازنویسی اطلاعات، درخواست شما ذخیره نشد.
+    </p>
+
+    <a href="{% url 'admin:seo_seosettings_change' object_id %}">
+        بازگشت به تنظیمات
+    </a>
+{% else %}
+  <h2>تأیید تغییر اجازه خزش ربات‌ها</h2>
+
+  <p>
+    وضعیت قبلی:
+    <strong>{{ old_value|yesno:"روشن,خاموش" }}</strong>
+  </p>
+
+  <p>
+    وضعیت جدید:
+    <strong>{{ new_value|yesno:"روشن,خاموش" }}</strong>
+  </p>
+
+  <p>آیا از اعمال این تغییر مطمئن هستید؟</p>
+
+  <form method="post">
+    {% csrf_token %}
+
+    {% for key, values in original_post.lists %}
+      {% if key != "csrfmiddlewaretoken" %}
+        {% for value in values %}
+          <input type="hidden" name="{{ key }}" value="{{ value }}">
+        {% endfor %}
+      {% endif %}
+    {% endfor %}
+
+    <input
+    type="hidden"
+    name="_seo_confirmation"
+    value="{{ confirmation_token }}"
+>
+
+    <button type="submit">تأیید و ذخیره تغییرات</button>
+
+    <a href="{% url 'admin:seo_seosettings_change' object_id %}">
+      انصراف
+    </a>
+  </form>
+  {% endif %}
+{% endblock %}
