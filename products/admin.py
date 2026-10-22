@@ -19,6 +19,7 @@ class ProductAdmin(admin.ModelAdmin):
         "is_active",
     )
 
+    ordering = ("-created_at",)
     list_filter = ("category", "is_active")
-    search_fields = ("name",)
+    search_fields = ("name", "slug", "category__name")
     prepopulated_fields = {"slug": ("name",)}
