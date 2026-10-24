@@ -41,6 +41,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "description",
             "short_description",
             "long_description",
+            "gallery_description",
             "price",
             "stock",
             "image",

@@ -1,11 +1,20 @@
+from io import BytesIO
+
 import pytest
+from django.core.files.base import ContentFile
 from django.db import IntegrityError, transaction
 from django.urls import reverse
+from PIL import Image
 
 from products.models import Category, Product, ProductImage
 from products.services.product_service import ProductService
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.fixture(autouse=True)
+def isolated_media(settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
 
 
 @pytest.fixture
@@ -23,9 +32,14 @@ def product():
 
 
 def add_image(product, *, primary=False, order=0):
+    output = BytesIO()
+    Image.new("RGB", (10, 10), "red").save(output, format="JPEG")
     return ProductImage.objects.create(
         product=product,
-        image=f"products/gallery/photo-{order}.jpg",
+        image=ContentFile(
+            output.getvalue(),
+            name=f"photo-{product.pk}-{order}.jpg",
+        ),
         title="Product photo",
         alt_text="Front view",
         description="Image description",

@@ -9,6 +9,7 @@ class SEOSettings(models.Model):
     )
 
     version = models.PositiveIntegerField(
+        "نسخه تغییرات",
         default=1,
         editable=False,
     )
@@ -33,10 +34,11 @@ class SEOSettingsLog(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
+        verbose_name="تغییردهنده",
     )
-    old_value = models.BooleanField()
-    new_value = models.BooleanField()
-    changed_at = models.DateTimeField(auto_now_add=True)
+    old_value = models.BooleanField("مقدار قبلی")
+    new_value = models.BooleanField("مقدار جدید")
+    changed_at = models.DateTimeField("زمان تغییر", auto_now_add=True)
 
     class Meta:
         ordering = ["-changed_at"]
