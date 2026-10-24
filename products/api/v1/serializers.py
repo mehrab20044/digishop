@@ -6,6 +6,11 @@ from products.models import (
     Product,
     ProductAttributeValue,
     ProductImage,
+    ProductVariant,
+)
+from products.services.variant_service import (
+    get_default_variant,
+    is_product_available,
 )
 
 
@@ -51,6 +56,23 @@ class ProductAttributeValueSerializer(serializers.ModelSerializer):
         fields = ["id", "attribute", "value"]
 
 
+
+class ProductVariantSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductVariant
+        fields = [
+            "id",
+            "sku",
+            "color",
+            "storage",
+            "price",
+            "stock",
+            "is_active",
+        ]
+        read_only_fields = fields
+
+
+
 class ProductSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
     images = ProductImageSerializer(many=True, read_only=True)
@@ -59,6 +81,9 @@ class ProductSerializer(serializers.ModelSerializer):
         many=True,
         read_only=True,
 )
+    variants = serializers.SerializerMethodField()
+    default_variant = serializers.SerializerMethodField()
+    is_available = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -79,4 +104,20 @@ class ProductSerializer(serializers.ModelSerializer):
             "created_at",
             "brand",
             "attribute_values",
+            "variants",
+            "default_variant",
+            "is_available",
         ]
+    def get_default_variant(self, obj):
+        variant = get_default_variant(obj)
+
+        if variant is None:
+            return None
+
+        return ProductVariantSerializer(variant).data
+    def get_is_available(self, obj):
+        return is_product_available(obj)
+
+    def get_variants(self, obj):
+        variants = obj.variants.filter(is_active=True).order_by("price", "id")
+        return ProductVariantSerializer(variants, many=True).data

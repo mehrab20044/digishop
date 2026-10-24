@@ -185,6 +185,74 @@ class Product(models.Model):
         return self.name
 
 
+
+class ProductVariant(models.Model):
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="variants",
+        verbose_name="محصول",
+    )
+
+    sku = models.CharField(
+        "کد اختصاصی کالا",
+        max_length=100,
+        unique=True,
+    )
+
+    color = models.CharField(
+        "رنگ",
+        max_length=100,
+        blank=True,
+    )
+
+    storage = models.CharField(
+        "حافظه",
+        max_length=100,
+        blank=True,
+    )
+
+    price = models.PositiveBigIntegerField("قیمت")
+
+    stock = models.PositiveIntegerField(
+        "موجودی",
+        default=0,
+    )
+
+    is_active = models.BooleanField(
+        "فعال",
+        default=True,
+    )
+
+    def clean(self):
+        super().clean()
+
+        errors = {}
+
+        if not self.color.strip() and not self.storage.strip():
+            errors["color"] = "حداقل رنگ یا حافظه باید مشخص باشد."
+
+        if self.price is not None and self.price <= 0:
+            errors["price"] = "قیمت باید بیشتر از صفر باشد."
+
+        if errors:
+            raise ValidationError(errors)
+
+    class Meta:
+        verbose_name = "تنوع محصول"
+        verbose_name_plural = "تنوع‌های محصول"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product", "color", "storage"],
+                name="unique_product_variant_combination",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.product.name} - {self.sku}"
+
+
+
 class ProductImage(models.Model):
     product = models.ForeignKey(
         Product,

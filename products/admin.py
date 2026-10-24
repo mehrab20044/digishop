@@ -16,6 +16,7 @@ from .models import (
     Product,
     ProductAttributeValue,
     ProductImage,
+    ProductVariant,
 )
 from .services.image_service import prepare_product_image
 from .validators import (
@@ -247,6 +248,21 @@ class CategoryAdmin(admin.ModelAdmin):
     inlines = [CategoryAttributeInline]
 
 
+
+class ProductVariantInline(admin.TabularInline):
+    model = ProductVariant
+    extra = 1
+
+    fields = (
+        "sku",
+        "color",
+        "storage",
+        "price",
+        "stock",
+        "is_active",
+    )
+
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     form = ProductAdminForm
@@ -262,7 +278,11 @@ class ProductAdmin(admin.ModelAdmin):
     list_filter = ("category", "is_active")
     search_fields = ("name", "slug", "category__name")
     prepopulated_fields = {"slug": ("name",)}
-    inlines = [ProductImageInline, ProductAttributeValueInline]
+    inlines = [
+    ProductImageInline,
+    ProductAttributeValueInline,
+    ProductVariantInline,
+]
     exclude = ("description", "image")
 
     def save_related(self, request, form, formsets, change):
