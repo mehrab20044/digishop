@@ -71,6 +71,7 @@ def admin_payload(product, rows, *, active=True):
         "variants-INITIAL_FORMS": "0",
         "variants-MIN_NUM_FORMS": "0",
         "variants-MAX_NUM_FORMS": "1000",
+        "status": product.status,
     }
 
     if active:

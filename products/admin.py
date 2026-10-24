@@ -87,6 +87,16 @@ class ProductAdminForm(forms.ModelForm):
                 "این محصول مشخصاتی دارد که برای دسته‌بندی انتخاب‌شده مجاز نیستند."
             )
 
+        status = cleaned_data.get("status")
+
+        if status == Product.Status.PUBLISHED and self.instance.pk:
+            invalid_variants = self.instance.variants.filter(price=0).exists()
+
+            if invalid_variants:
+                raise ValidationError(
+                    "برای انتشار محصول، قیمت تمام تنوع‌های آن باید معتبر باشد."
+                )
+
         return cleaned_data
 
     class Meta:
@@ -272,10 +282,11 @@ class ProductAdmin(admin.ModelAdmin):
         "category",
         "price",
         "stock",
+        "status",
         "is_active",
     )
     ordering = ("-created_at",)
-    list_filter = ("category", "is_active")
+    list_filter = ("category", "status","is_active")
     search_fields = ("name", "slug", "category__name")
     prepopulated_fields = {"slug": ("name",)}
     inlines = [

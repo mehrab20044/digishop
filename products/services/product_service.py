@@ -5,7 +5,10 @@ class ProductService:
     @staticmethod
     def get_active_products():
         return (
-            Product.objects.filter(is_active=True)
+            Product.objects.filter(
+                is_active=True,
+                status=Product.Status.PUBLISHED,
+            )
             .select_related("category")
             .prefetch_related("images")
             .order_by("-created_at")

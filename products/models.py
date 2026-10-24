@@ -136,6 +136,9 @@ class ProductAttributeValue(models.Model):
 
 
 class Product(models.Model):
+    class Status(models.TextChoices):
+        DRAFT = "draft", "پیش‌نویس"
+        PUBLISHED = "published", "منتشرشده"
     category = models.ForeignKey(
         Category,
         on_delete=models.PROTECT,
@@ -175,7 +178,29 @@ class Product(models.Model):
     )
 
     is_active = models.BooleanField("فعال و قابل انتشار", default=True)
+    status = models.CharField(
+        "وضعیت انتشار",
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PUBLISHED,
+    )
     created_at = models.DateTimeField("زمان ایجاد", auto_now_add=True)
+
+
+    def clean(self):
+        super().clean()
+
+        if self.status != self.Status.PUBLISHED:
+            return
+
+        # محصولات جدید هنوز Variant ذخیره‌شده ندارند.
+        if self.pk and self.variants.exists():
+            return
+
+        if self.price is not None and self.price <= 0:
+            raise ValidationError({
+                "price": "قیمت محصول منتشرشده باید بیشتر از صفر باشد."
+            })
 
     class Meta:
         verbose_name = "محصول"

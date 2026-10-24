@@ -175,6 +175,7 @@ def admin_add_payload(product):
         "variants-INITIAL_FORMS": "0",
         "variants-MIN_NUM_FORMS": "0",
         "variants-MAX_NUM_FORMS": "1000",
+        "status": product.status,
     }
 
 
@@ -203,6 +204,7 @@ def admin_bulk_payload(product, images):
         "variants-INITIAL_FORMS": "0",
         "variants-MIN_NUM_FORMS": "0",
         "variants-MAX_NUM_FORMS": "1000",
+        "status": product.status,
     }
 
 
