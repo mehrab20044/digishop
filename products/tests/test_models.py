@@ -1,6 +1,8 @@
 import pytest
-from products.models import Category, Product
 from django.db import IntegrityError
+
+from products.models import Category, Product
+
 
 @pytest.mark.django_db
 def test_category_str():

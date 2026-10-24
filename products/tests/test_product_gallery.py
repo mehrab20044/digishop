@@ -5,7 +5,6 @@ from django.urls import reverse
 from products.models import Category, Product, ProductImage
 from products.services.product_service import ProductService
 
-
 pytestmark = pytest.mark.django_db
 
 
