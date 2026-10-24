@@ -7,6 +7,7 @@ class ProductService:
         return (
             Product.objects.filter(is_active=True)
             .select_related("category")
+            .prefetch_related("images")
             .order_by("-created_at")
         )
 
