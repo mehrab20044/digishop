@@ -84,7 +84,11 @@ class ProductSerializer(serializers.ModelSerializer):
     variants = serializers.SerializerMethodField()
     default_variant = serializers.SerializerMethodField()
     is_available = serializers.SerializerMethodField()
-
+    effective_price = serializers.IntegerField(
+        source="_effective_price",
+        read_only=True,
+        allow_null=True,
+    )
     class Meta:
         model = Product
         fields = [
@@ -107,6 +111,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "variants",
             "default_variant",
             "is_available",
+            "effective_price",
         ]
     def get_default_variant(self, obj):
         variant = get_default_variant(obj)

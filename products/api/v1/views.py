@@ -17,16 +17,37 @@ class CategoryViewSet(ReadOnlyModelViewSet):
         return ProductService.get_categories()
 
 
+
+class ProductOrderingFilter(OrderingFilter):
+    def get_ordering(self, request, queryset, view):
+        ordering = super().get_ordering(request, queryset, view)
+
+        if not ordering:
+            return ordering
+
+        return [
+            item.replace("effective_price", "_effective_price")
+            if item.lstrip("-") == "effective_price"
+            else item
+            for item in ordering
+        ]
+
+
 class ProductViewSet(ReadOnlyModelViewSet):
     serializer_class = ProductSerializer
     permission_classes = [permissions.AllowAny]
 
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filter_backends = [
+    DjangoFilterBackend,
+    SearchFilter,
+    ProductOrderingFilter,
+]
     filterset_class = ProductFilter
     search_fields = ["name", "description"]
 
-    ordering_fields = ["price", "created_at"]
+    ordering_fields = ["effective_price", "created_at"]
     ordering = ["-created_at"]
 
     def get_queryset(self):
-        return ProductService.get_active_products()
+        queryset = ProductService.get_active_products()
+        return ProductFilter._with_effective_price(queryset)
