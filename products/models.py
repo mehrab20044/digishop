@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import models
 
@@ -24,6 +25,116 @@ class Category(models.Model):
         return self.name
 
 
+
+
+class Brand(models.Model):
+    name = models.CharField("نام برند", max_length=150, unique=True)
+    slug = models.SlugField(
+        "نامک",
+        max_length=170,
+        unique=True,
+        allow_unicode=True,
+    )
+
+    class Meta:
+        verbose_name = "برند"
+        verbose_name_plural = "برندها"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+
+class Attribute(models.Model):
+    name = models.CharField("نام ویژگی", max_length=100, unique=True)
+    slug = models.SlugField(
+        "نامک",
+        max_length=120,
+        unique=True,
+        allow_unicode=True,
+    )
+
+    class Meta:
+        verbose_name = "ویژگی"
+        verbose_name_plural = "ویژگی‌ها"
+
+    def __str__(self):
+        return self.name
+
+
+class CategoryAttribute(models.Model):
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.CASCADE,
+        related_name="category_attributes",
+    )
+    attribute = models.ForeignKey(
+        Attribute,
+        on_delete=models.PROTECT,
+        related_name="category_attributes",
+    )
+
+    class Meta:
+        verbose_name = "ویژگی دسته‌بندی"
+        verbose_name_plural = "ویژگی‌های دسته‌بندی"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["category", "attribute"],
+                name="unique_category_attribute",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.category} - {self.attribute}"
+
+
+class ProductAttributeValue(models.Model):
+    product = models.ForeignKey(
+        "Product",
+        on_delete=models.CASCADE,
+        related_name="attribute_values",
+        verbose_name="محصول",
+    )
+    attribute = models.ForeignKey(
+        Attribute,
+        on_delete=models.PROTECT,
+        related_name="product_values",
+        verbose_name="ویژگی",
+    )
+    value = models.CharField("مقدار ویژگی", max_length=255)
+
+    def clean(self):
+        super().clean()
+
+        if not self.product_id or not self.attribute_id:
+            return
+
+        allowed = CategoryAttribute.objects.filter(
+            category_id=self.product.category_id,
+            attribute_id=self.attribute_id,
+        ).exists()
+
+        if not allowed:
+            raise ValidationError({
+                "attribute": "این ویژگی برای دسته‌بندی محصول تعریف نشده است."
+        })
+
+    class Meta:
+        verbose_name = "مشخصه محصول"
+        verbose_name_plural = "مشخصات محصولات"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product", "attribute"],
+                name="unique_product_attribute",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.product} - {self.attribute}: {self.value}"
+
+
+
 class Product(models.Model):
     category = models.ForeignKey(
         Category,
@@ -33,6 +144,14 @@ class Product(models.Model):
     )
 
     name = models.CharField("نام محصول", max_length=200)
+    brand = models.ForeignKey(
+        Brand,
+        on_delete=models.PROTECT,
+        related_name="products",
+        null=True,
+        blank=True,
+        verbose_name="برند",
+)
     slug = models.SlugField(
         "نامک",
         max_length=220,
@@ -104,3 +223,5 @@ class ProductImage(models.Model):
                 name="unique_primary_image_per_product",
             )
         ]
+
+

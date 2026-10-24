@@ -63,6 +63,10 @@ def admin_payload(product, rows, *, active=True):
         "images-MIN_NUM_FORMS": "0",
         "images-MAX_NUM_FORMS": "1000",
         "_save": "Save",
+        "attribute_values-TOTAL_FORMS": "0",
+        "attribute_values-INITIAL_FORMS": "0",
+        "attribute_values-MIN_NUM_FORMS": "0",
+        "attribute_values-MAX_NUM_FORMS": "1000",
     }
 
     if active:

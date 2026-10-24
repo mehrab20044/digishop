@@ -8,7 +8,15 @@ from django.db.models import Max
 from django.forms.models import BaseInlineFormSet
 from django.utils.html import format_html
 
-from .models import Category, Product, ProductImage
+from .models import (
+    Attribute,
+    Brand,
+    Category,
+    CategoryAttribute,
+    Product,
+    ProductAttributeValue,
+    ProductImage,
+)
 from .services.image_service import prepare_product_image
 from .validators import (
     validate_product_image_content,
@@ -61,6 +69,24 @@ class ProductAdminForm(forms.ModelForm):
         label="افزودن چند تصویر به گالری",
         help_text="همه تصاویر را هم‌زمان انتخاب کنید. اولین تصویر، تصویر اصلی می‌شود.",
     )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        category = cleaned_data.get("category")
+
+        if not category or not self.instance.pk:
+            return cleaned_data
+
+        invalid = self.instance.attribute_values.exclude(
+            attribute__category_attributes__category=category
+        ).exists()
+
+        if invalid:
+            raise ValidationError(
+                "این محصول مشخصاتی دارد که برای دسته‌بندی انتخاب‌شده مجاز نیستند."
+            )
+
+        return cleaned_data
 
     class Meta:
         model = Product
@@ -191,11 +217,34 @@ class ProductImageInline(admin.TabularInline):
             obj.image.url,
         )
 
+@admin.register(Brand)
+class BrandAdmin(admin.ModelAdmin):
+    list_display = ("name", "slug")
+    search_fields = ("name",)
+    prepopulated_fields = {"slug": ("name",)}
+
+
+@admin.register(Attribute)
+class AttributeAdmin(admin.ModelAdmin):
+    list_display = ("name", "slug")
+    search_fields = ("name",)
+    prepopulated_fields = {"slug": ("name",)}
+
+
+class CategoryAttributeInline(admin.TabularInline):
+    model = CategoryAttribute
+    extra = 1
+
+
+class ProductAttributeValueInline(admin.TabularInline):
+    model = ProductAttributeValue
+    extra = 1
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ("name", "slug")
     prepopulated_fields = {"slug": ("name",)}
+    inlines = [CategoryAttributeInline]
 
 
 @admin.register(Product)
@@ -203,6 +252,7 @@ class ProductAdmin(admin.ModelAdmin):
     form = ProductAdminForm
     list_display = (
         "name",
+        "brand",
         "category",
         "price",
         "stock",
@@ -212,7 +262,7 @@ class ProductAdmin(admin.ModelAdmin):
     list_filter = ("category", "is_active")
     search_fields = ("name", "slug", "category__name")
     prepopulated_fields = {"slug": ("name",)}
-    inlines = [ProductImageInline]
+    inlines = [ProductImageInline, ProductAttributeValueInline]
     exclude = ("description", "image")
 
     def save_related(self, request, form, formsets, change):
@@ -236,3 +286,4 @@ class ProductAdmin(admin.ModelAdmin):
                 sort_order=next_order + offset,
                 is_primary=not has_primary and offset == 1,
             )
+

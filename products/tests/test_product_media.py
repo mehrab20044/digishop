@@ -167,6 +167,10 @@ def admin_add_payload(product):
         "images-0-sort_order": "0",
         "images-0-is_primary": "on",
         "_save": "Save",
+        "attribute_values-TOTAL_FORMS": "0",
+        "attribute_values-INITIAL_FORMS": "0",
+        "attribute_values-MIN_NUM_FORMS": "0",
+        "attribute_values-MAX_NUM_FORMS": "1000",
     }
 
 
@@ -187,6 +191,10 @@ def admin_bulk_payload(product, images):
         "images-MIN_NUM_FORMS": "0",
         "images-MAX_NUM_FORMS": "1000",
         "_save": "Save",
+        "attribute_values-TOTAL_FORMS": "0",
+        "attribute_values-INITIAL_FORMS": "0",
+        "attribute_values-MIN_NUM_FORMS": "0",
+        "attribute_values-MAX_NUM_FORMS": "1000",
     }
 
 
