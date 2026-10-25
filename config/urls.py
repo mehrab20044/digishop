@@ -23,6 +23,10 @@ from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularSwaggerView,
 )
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
 
 admin.site.site_header = "مدیریت دیجی‌شاپ"
 admin.site.site_title = "پنل مدیریت دیجی‌شاپ"
@@ -38,7 +42,17 @@ urlpatterns = [
         SpectacularSwaggerView.as_view(url_name="schema"),
         name="swagger-ui",
     ),
-]
+    path(
+    "api/v1/auth/token/",
+    TokenObtainPairView.as_view(),
+    name="token_obtain_pair",
+),
+    path(
+        "api/v1/auth/token/refresh/",
+        TokenRefreshView.as_view(),
+        name="token_refresh",
+    ),
+path("api/v1/auth/", include("accounts.api.v1.urls")),]
 
 if settings.DEBUG:
     urlpatterns += static(

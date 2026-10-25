@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -38,6 +39,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework_simplejwt.token_blacklist",
     "rest_framework",
     "django_filters",
     "drf_spectacular",
@@ -143,14 +145,33 @@ MAILERS = {
 
 REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "config.exceptions.custom_exception_handler",
+
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
+
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 12,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+
+        "DEFAULT_THROTTLE_RATES": {
+        "auth_ip": "30/min",
+    },
 }
 
+
+SIMPLE_JWT = {
+    "SIGNING_KEY": os.environ["JWT_SIGNING_KEY"],
+    "ALGORITHM": "HS256",
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+}
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "DigiShop API",
@@ -161,3 +182,14 @@ SPECTACULAR_SETTINGS = {
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+
+OTP_CONSOLE_ENABLED = (
+    os.environ.get("OTP_CONSOLE_ENABLED", "false").lower() == "true"
+)
+
+OTP_TTL_SECONDS = 120
+OTP_RESEND_SECONDS = 60
+OTP_MAX_FAILED_ATTEMPTS = 5
+OTP_SEND_WINDOW_SECONDS = 3600
+OTP_MAX_SENDS_PER_WINDOW = 5
