@@ -35,6 +35,10 @@ admin.site.index_title = "مدیریت فروشگاه"
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("products/", include("products.urls")),
+    path(
+    "api/v1/owner/",
+    include("config.dashboard_urls"),
+),
     path("", include("seo.urls")),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path(

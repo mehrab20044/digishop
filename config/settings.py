@@ -193,3 +193,12 @@ OTP_RESEND_SECONDS = 60
 OTP_MAX_FAILED_ATTEMPTS = 5
 OTP_SEND_WINDOW_SECONDS = 3600
 OTP_MAX_SENDS_PER_WINDOW = 5
+
+
+if DEBUG:
+    CSRF_TRUSTED_ORIGINS = list(
+        dict.fromkeys([
+            *globals().get("CSRF_TRUSTED_ORIGINS", []),
+            "http://localhost:5173",
+        ])
+    )
