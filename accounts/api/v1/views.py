@@ -13,8 +13,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from accounts.models import Address, Profile
-from accounts.profile_services import delete_address
-from accounts.services import request_otp, verify_otp
+from accounts.services.profile_service import delete_address
+from accounts.services.auth_service import request_otp, verify_otp
 from accounts.throttles import AuthIPThrottle
 
 from .serializers import (

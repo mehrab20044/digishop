@@ -17,7 +17,7 @@ from products.validators import (
     validate_product_image_size,
 )
 
-from .dashboard_api import OwnerAPIView, get_resource
+from dashboard.api.v1.views import OwnerAPIView, get_resource
 
 logger = logging.getLogger(__name__)
 

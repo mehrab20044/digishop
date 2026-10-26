@@ -8,7 +8,7 @@ from rest_framework.response import Response
 
 from products.models import Product
 
-from .dashboard_api import (
+from dashboard.api.v1.views import (
     OwnerAPIView,
     detail_data,
     get_resource,

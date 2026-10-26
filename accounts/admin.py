@@ -5,7 +5,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.forms.models import BaseInlineFormSet
 
 from .models import Address, Profile
-from .profile_services import (
+from accounts.services.profile_service import (
     create_address,
     delete_address,
     get_profile_status,

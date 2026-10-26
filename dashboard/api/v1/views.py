@@ -13,7 +13,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models import Address
-from accounts.profile_services import get_profile_status
+from accounts.services.profile_service import get_profile_status
 from products.models import (
     Attribute,
     Brand,

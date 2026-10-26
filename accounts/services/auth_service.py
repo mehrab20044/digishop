@@ -17,8 +17,8 @@ from rest_framework.exceptions import (
 )
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import OTPChallenge, PhoneIdentity, Profile
-from .sms import send_otp
+from accounts.models import OTPChallenge, PhoneIdentity, Profile
+from accounts.sms import send_otp
 
 User = get_user_model()
 

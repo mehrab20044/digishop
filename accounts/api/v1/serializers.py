@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from accounts.models import Address
-from accounts.profile_services import (
+from accounts.services.profile_service import (
     complete_profile,
     create_address,
     get_profile_status,

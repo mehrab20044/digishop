@@ -8,7 +8,7 @@ from rest_framework.exceptions import (
     ValidationError,
 )
 
-from .models import Address, PhoneIdentity, Profile
+from accounts.models import Address, PhoneIdentity, Profile
 
 User = get_user_model()
 

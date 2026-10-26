@@ -5,18 +5,18 @@ from seo.dashboard_api import (
     SEODashboardView,
 )
 
-from .dashboard_api import (
+from dashboard.api.v1.views import (
     DashboardDetailView,
     DashboardIndexView,
     DashboardListView,
 )
-from .dashboard_product_create import ProductCreateView
-from .dashboard_write_api import (
+from dashboard.api.v1.product_create import ProductCreateView
+from dashboard.api.v1.write_views import (
     DashboardCreateView,
     DashboardUpdateView,
     OwnerCSRFView,
 )
-from .dashboard_gallery import ProductGalleryView
+from dashboard.api.v1.gallery import ProductGalleryView
 
 app_name = "owner_dashboard"
 

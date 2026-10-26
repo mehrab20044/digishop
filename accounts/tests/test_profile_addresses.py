@@ -31,11 +31,11 @@ from accounts.models import (
     Profile,
 )
 from accounts.permissions import HasCompleteProfile
-from accounts.profile_services import (
+from accounts.services.profile_service import (
     create_address,
     get_profile_status,
 )
-from accounts.services import request_otp, verify_otp
+from accounts.services.auth_service import request_otp, verify_otp
 
 User = get_user_model()
 BASE = "/api/v1/auth/"
@@ -96,7 +96,7 @@ def complete(api, address_data):
 
 
 def test_signup_creates_empty_profile_and_reports_missing_fields():
-    with patch("accounts.services.send_otp") as sender:
+    with patch("accounts.services.auth_service.send_otp") as sender:
         request_otp("09999999999")
         code = sender.call_args.args[1]
 
@@ -654,7 +654,7 @@ def test_concurrent_signup_consumes_code_only_once():
     if connection.vendor != "postgresql":
         pytest.skip("Requires PostgreSQL row-level locks")
 
-    with patch("accounts.services.send_otp") as sender:
+    with patch("accounts.services.auth_service.send_otp") as sender:
         request_otp("09999999999")
         code = sender.call_args.args[1]
 
@@ -692,12 +692,12 @@ def test_concurrent_signup_consumes_code_only_once():
 
 
 def test_signup_profile_failure_rolls_back_account_and_code_consumption():
-    with patch("accounts.services.send_otp") as sender:
+    with patch("accounts.services.auth_service.send_otp") as sender:
         request_otp("09999999999")
         code = sender.call_args.args[1]
 
     with patch(
-        "accounts.services.Profile.objects.get_or_create",
+        "accounts.services.auth_service.Profile.objects.get_or_create",
         side_effect=RuntimeError("database failure"),
     ):
         with pytest.raises(RuntimeError):
@@ -719,7 +719,7 @@ def test_login_reports_existing_completed_profile(
 ):
     assert complete(api, address_data).status_code == 200
 
-    with patch("accounts.services.send_otp") as sender:
+    with patch("accounts.services.auth_service.send_otp") as sender:
         request_otp("09123456789")
         code = sender.call_args.args[1]
 

@@ -32,7 +32,7 @@ def api():
 
 @pytest.fixture
 def sms():
-    with patch("accounts.services.send_otp") as sender:
+    with patch("accounts.services.auth_service.send_otp") as sender:
         yield sender
 
 
@@ -209,7 +209,7 @@ def test_resending_invalidates_previous_code(api, sms):
     sms.side_effect = None
 
     with patch(
-        "accounts.services.secrets.randbelow",
+        "accounts.services.auth_service.secrets.randbelow",
         side_effect=[123456, 654321],
     ):
         old = request_code(api, sms)

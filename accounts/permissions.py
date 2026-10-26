@@ -1,6 +1,6 @@
 from rest_framework.permissions import BasePermission
 
-from .profile_services import require_complete_profile
+from accounts.services.profile_service import require_complete_profile
 
 
 class HasCompleteProfile(BasePermission):
