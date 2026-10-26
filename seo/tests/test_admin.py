@@ -9,7 +9,7 @@ from seo.models import SEOSettings, SEOSettingsLog
 @pytest.mark.django_db
 def test_non_superuser_cannot_change_seo_settings(client):
     user = get_user_model().objects.create_user(
-        username="staff_tester",
+        phone="09100000003",
         password="TestPassword123!",
         is_staff=True,
         is_superuser=False,
@@ -28,7 +28,7 @@ def test_non_superuser_cannot_change_seo_settings(client):
 @pytest.mark.django_db
 def test_seo_change_requires_confirmation(client):
     user = get_user_model().objects.create_superuser(
-        username="seo_admin",
+        phone="09100000002",
         email="admin@example.com",
         password="TestPassword123!",
     )
@@ -105,7 +105,7 @@ def test_seo_change_requires_confirmation(client):
 @pytest.mark.django_db
 def test_seo_change_cannot_bypass_confirmation(client):
     user = get_user_model().objects.create_superuser(
-        username="security_admin",
+        phone="09100000001",
         email="security@example.com",
         password="TestPassword123!",
     )
@@ -145,7 +145,7 @@ def test_seo_change_cannot_bypass_confirmation(client):
 @pytest.mark.django_db
 def test_seo_admin_rejects_stale_confirmation(client):
     user = get_user_model().objects.create_superuser(
-        username="stale_admin",
+        phone="09100000004",
         email="stale@example.com",
         password="TestPassword123!",
     )

@@ -55,8 +55,7 @@ export function createAuthClient({
 
   try {
     const stored = JSON.parse(
-      sessionStorage.getItem(storageKey),
-    );
+    localStorage.getItem(storageKey)    );
 
     if (
       typeof stored?.access === "string" &&
@@ -76,12 +75,12 @@ export function createAuthClient({
 
     try {
       if (value) {
-        sessionStorage.setItem(
+        localStorage.setItem(
           storageKey,
           JSON.stringify(value),
         );
       } else {
-        sessionStorage.removeItem(storageKey);
+        localStorage.removeItem(storageKey);
       }
     } catch {
       // Authentication still works in memory.
@@ -305,6 +304,20 @@ export function createAuthClient({
     },
 
     getProfile: () => json(BASE + "me/"),
+
+        async logoutAll() {
+      if (!session) return;
+
+      const logoutEpoch = epoch;
+
+      await json(BASE + "logout-all/", {
+        method: "POST",
+      });
+
+      if (epoch === logoutEpoch) {
+        expired();
+      }
+    },
 
     async logout() {
       if (!session) return;

@@ -8,7 +8,7 @@ from seo.services.seo_services import SEOService, SEOSettingsConflict
 @pytest.mark.django_db
 def test_seo_service_rejects_stale_version():
     user = get_user_model().objects.create_superuser(
-        username="version_admin",
+        phone="09100000001",
         email="version@example.com",
         password="TestPassword123!",
     )

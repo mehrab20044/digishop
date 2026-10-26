@@ -1,3 +1,5 @@
+from accounts.authentication import SessionJWTAuthentication
+from dashboard.permissions import IsManagementSession
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
@@ -8,10 +10,8 @@ from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from rest_framework import serializers
-from rest_framework.authentication import SessionAuthentication
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -32,23 +32,9 @@ SEO_PERMISSIONS = {
 CONFIRMATION_SALT = "seo-dashboard-confirmation"
 
 
-class CanOpenDashboard(BasePermission):
-    message = "حساب شما دسترسی به داشبورد ندارد."
+class CanOpenDashboard(IsManagementSession):
+    pass
 
-    def has_permission(self, request, view):
-        user = request.user
-
-        if not (
-            user.is_authenticated
-            and user.is_active
-            and user.is_staff
-        ):
-            return False
-
-        return user.is_superuser or any(
-            user.has_perm(permission)
-            for permission in SEO_PERMISSIONS.values()
-        )
 
 
 class PrepareSerializer(serializers.Serializer):
@@ -99,7 +85,7 @@ def access_data(user):
 
     return {
         "id": user.pk,
-        "username": user.username,
+        "username": user.phone,
         "full_name": user.get_full_name(),
         "direct": {
             key: permission in direct
@@ -118,7 +104,7 @@ def access_data(user):
 
 @method_decorator(never_cache, name="dispatch")
 class SEOBaseView(APIView):
-    authentication_classes = [SessionAuthentication]
+    authentication_classes = [SessionJWTAuthentication]
     permission_classes = [CanOpenDashboard]
 
 
@@ -127,6 +113,13 @@ class SEODashboardView(SEOBaseView):
 
     def get(self, request):
         user = request.user
+
+        if not any(
+            user.has_perm(permission)
+            for permission in SEO_PERMISSIONS.values()
+        ):
+            raise PermissionDenied("اجازه مشاهده بخش سئو را ندارید.")
+
         current = SEOSettings.get_settings()
 
         can_view = can(user, "view") or can(user, "change")
@@ -143,7 +136,7 @@ class SEODashboardView(SEOBaseView):
                 {
                     "id": item.pk,
                     "changed_by": (
-                        item.changed_by.username
+                        item.changed_by.phone
                         if item.changed_by
                         else "کاربر حذف‌شده"
                     ),

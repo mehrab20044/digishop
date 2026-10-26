@@ -22,6 +22,7 @@ from products.models import (
 )
 
 from seo.models import SEOSettings
+from accounts.services.staff_service import can_manage
 
 User = get_user_model()
 
@@ -445,6 +446,20 @@ class DashboardIndexView(OwnerAPIView):
                     "view": True,
                     "add": False,
                     "change": user.has_perm("seo.change_seosettings"),
+                    "delete": False,
+                },
+            })
+
+        if can_manage(user, "view"):
+            resources.append({
+                "key": "staff",
+                "label": "همکاران",
+                "columns": [],
+                "count": User.objects.filter(is_staff=True).count(),
+                "capabilities": {
+                    "view": True,
+                    "add": can_manage(user, "add"),
+                    "change": can_manage(user, "change"),
                     "delete": False,
                 },
             })

@@ -1,12 +1,13 @@
-import { managementFetch } from "./managementAuth";
 import { useEffect, useRef, useState } from "react";
 
+import { managementFetch } from "./managementAuth";
 import DashboardHome from "./DashboardHome";
 import Editor, { CREATABLE, EDITABLE } from "./Editor";
 import ProductCreate from "./ProductCreate";
 import ProductGallery from "./ProductGallery";
 import ProductPublication from "./ProductPublication";
 import SEOManager from "./SEOManager";
+import StaffManager from "./StaffManager";
 
 const BASE = "/api/v1/owner/";
 
@@ -90,7 +91,7 @@ function display(value) {
   return String(value);
 }
 
-/* Browser navigation */
+/* Navigation */
 
 function readLocation() {
   return {
@@ -192,10 +193,10 @@ function parseRoute(pathname) {
 
   const [, resource, identifier, edit] = match;
 
-  if (resource === "seo") {
+  if (resource === "staff" || resource === "seo") {
     return identifier
       ? { type: "not-found" }
-      : { type: "seo", resource };
+      : { type: resource, resource };
   }
 
   if (!identifier) {
@@ -220,10 +221,7 @@ function readFilters(search) {
   const value = Number(params.get("page") || 1);
 
   return {
-    page:
-      Number.isSafeInteger(value) && value > 0
-        ? value
-        : 1,
+    page: Number.isSafeInteger(value) && value > 0 ? value : 1,
     search: (params.get("search") || "").slice(0, 150),
   };
 }
@@ -231,13 +229,8 @@ function readFilters(search) {
 function listQuery(page, search) {
   const params = new URLSearchParams();
 
-  if (page > 1) {
-    params.set("page", String(page));
-  }
-
-  if (search) {
-    params.set("search", search);
-  }
+  if (page > 1) params.set("page", String(page));
+  if (search) params.set("search", search);
 
   const query = params.toString();
   return query ? `?${query}` : "";
@@ -253,16 +246,13 @@ function useApi(path) {
   });
 
   useEffect(() => {
-    if (path === null) {
-      return undefined;
-    }
+    if (path === null) return undefined;
 
     const controller = new AbortController();
 
     async function load() {
       try {
         const response = await managementFetch(`${BASE}${path}`, {
-          credentials: "same-origin",
           headers: { Accept: "application/json" },
           cache: "no-store",
           signal: controller.signal,
@@ -275,7 +265,7 @@ function useApi(path) {
             typeof data?.detail === "string"
               ? data.detail
               : data?.error?.message ??
-                `دریافت اطلاعات ناموفق بود؛ کد ${response.status}`,
+                  `دریافت اطلاعات ناموفق بود؛ کد ${response.status}`,
           );
 
           error.status = response.status;
@@ -310,7 +300,7 @@ function useApi(path) {
   };
 }
 
-/* Shared presentation */
+/* Shared UI */
 
 function ErrorMessage({ error }) {
   return (
@@ -435,13 +425,7 @@ function Record({ data, exclude = [] }) {
               {labels[name] ?? name}
             </dt>
 
-            <dd
-              style={{
-                margin: 0,
-                minWidth: 0,
-                fontSize: 13,
-              }}
-            >
+            <dd style={{ margin: 0, minWidth: 0, fontSize: 13 }}>
               <Value name={name} value={value} />
             </dd>
           </div>
@@ -482,7 +466,7 @@ function Unavailable({ navigate, message }) {
   );
 }
 
-/* List page */
+/* Resource list */
 
 function ResourceList({
   resource,
@@ -503,8 +487,10 @@ function ResourceList({
 
   const canCreate =
     resource.capabilities?.add &&
-    (resource.key === "products" ||
-      CREATABLE.includes(resource.key));
+    (
+      resource.key === "products" ||
+      CREATABLE.includes(resource.key)
+    );
 
   function submitSearch(event) {
     event.preventDefault();
@@ -585,9 +571,7 @@ function ResourceList({
               <thead>
                 <tr>
                   {resource.columns.map(([key, label]) => (
-                    <th key={key} scope="col">
-                      {label}
-                    </th>
+                    <th key={key} scope="col">{label}</th>
                   ))}
                   <th scope="col">عملیات</th>
                 </tr>
@@ -601,12 +585,7 @@ function ResourceList({
                     ))}
 
                     <td>
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: 8,
-                        }}
-                      >
+                      <div style={{ display: "flex", gap: 8 }}>
                         <PageLink
                           href={`${base}/${row.id}${query}`}
                           navigate={navigate}
@@ -614,14 +593,15 @@ function ResourceList({
                           مشاهده
                         </PageLink>
 
-                        {(resource.capabilities?.change && EDITABLE.includes(resource.key)) && (
-                          <PageLink
-                            href={`${base}/${row.id}/edit${query}`}
-                            navigate={navigate}
-                          >
-                            ویرایش
-                          </PageLink>
-                        )}
+                        {resource.capabilities?.change &&
+                          EDITABLE.includes(resource.key) && (
+                            <PageLink
+                              href={`${base}/${row.id}/edit${query}`}
+                              navigate={navigate}
+                            >
+                              ویرایش
+                            </PageLink>
+                          )}
                       </div>
                     </td>
                   </tr>
@@ -684,8 +664,7 @@ function ResourceList({
   );
 }
 
-/* Detail and edit pages */
-
+/* Resource detail and edit */
 
 function ProductImageGrid({ images = [] }) {
   return (
@@ -729,7 +708,6 @@ function ProductImageGrid({ images = [] }) {
   );
 }
 
-
 function ResourceRecord({
   resource,
   route,
@@ -743,7 +721,10 @@ function ResourceRecord({
   const detailHref = `${base}/${route.id}${query}`;
   const editing = route.type === "edit";
   const isProduct = resource.key === "products";
-  const canEdit = (resource.capabilities?.change && EDITABLE.includes(resource.key));
+
+  const canEdit =
+    resource.capabilities?.change &&
+    EDITABLE.includes(resource.key);
 
   const detail = useApi(
     `${resource.key}/${route.id}/?refresh=${revision}`,
@@ -753,7 +734,7 @@ function ResourceRecord({
     return (
       <Unavailable
         navigate={navigate}
-        message="ویرایش این بخش هنوز فعال نشده است."
+        message="ویرایش این بخش در دسترس نیست."
       />
     );
   }
@@ -841,22 +822,22 @@ function ResourceRecord({
               onSaved={() => onSaved(detailHref)}
             />
           )}
+
           {isProduct && (
-  <ProductImageGrid images={detail.data.images ?? []} />
-)}
+            <ProductImageGrid images={detail.data.images ?? []} />
+          )}
 
-<Record
-  data={detail.data}
-  exclude={isProduct ? ["images"] : []}
-/>
-
+          <Record
+            data={detail.data}
+            exclude={isProduct ? ["images"] : []}
+          />
         </section>
       )}
     </>
   );
 }
 
-/* Create page */
+/* Resource creation */
 
 function ResourceCreate({
   resource,
@@ -867,11 +848,14 @@ function ResourceCreate({
   const listHref = `/dashboard/${resource.key}${query}`;
   const isProduct = resource.key === "products";
 
-  if (!resource.capabilities?.add || (!isProduct && !CREATABLE.includes(resource.key))) {
+  if (
+    !resource.capabilities?.add ||
+    (!isProduct && !CREATABLE.includes(resource.key))
+  ) {
     return (
       <Unavailable
         navigate={navigate}
-        message="افزودن رکورد در این بخش هنوز فعال نیست."
+        message="افزودن رکورد در این بخش در دسترس نیست."
       />
     );
   }
@@ -916,9 +900,9 @@ export default function App({ onLogout }) {
 
   const index = useApi(`?refresh=${revision}`);
 
-  const resources = (
-    index.data?.resources ?? []
-  ).filter((item) => item.key !== "addresses");
+  const resources = (index.data?.resources ?? []).filter(
+    (item) => item.key !== "addresses",
+  );
 
   const current = resources.find(
     (item) => item.key === route.resource,
@@ -959,11 +943,7 @@ export default function App({ onLogout }) {
   }
 
   function openSection(key) {
-    go(
-      key === "home"
-        ? "/dashboard"
-        : `/dashboard/${key}`,
-    );
+    go(key === "home" ? "/dashboard" : `/dashboard/${key}`);
   }
 
   function refresh() {
@@ -977,9 +957,7 @@ export default function App({ onLogout }) {
   }
 
   if (!index.data) {
-    const forbidden = [401, 403].includes(
-      index.error?.status,
-    );
+    const forbidden = [401, 403].includes(index.error?.status);
 
     return (
       <main
@@ -1004,9 +982,7 @@ export default function App({ onLogout }) {
               <ErrorMessage error={index.error} />
 
               {forbidden && (
-                <p>
-                  با حساب مجاز وارد بخش مدیریت شوید.
-                </p>
+                <p>با حساب مجاز وارد بخش مدیریت شوید.</p>
               )}
 
               <PageActions>
@@ -1051,7 +1027,6 @@ export default function App({ onLogout }) {
           navigate={go}
         >
           <span className="brand-mark">D</span>
-
           <span>
             دیجی‌شاپ
             <small>MANAGEMENT WORKSPACE</small>
@@ -1088,7 +1063,6 @@ export default function App({ onLogout }) {
               }
             >
               {item.label}
-
               <small style={{ marginInlineStart: "auto" }}>
                 {display(item.count)}
               </small>
@@ -1103,9 +1077,8 @@ export default function App({ onLogout }) {
 
         <div className="user-card">
           <span className="avatar">
-            {username.trim().charAt(0) || "م"}
+            {username.charAt(0) || "م"}
           </span>
-
           <div>
             <strong>{username}</strong>
             <small>حساب مدیریت</small>
@@ -1127,12 +1100,12 @@ export default function App({ onLogout }) {
             }}
           >
             <button
-                  type="button"
-                  className="button ghost"
-                  onClick={onLogout}
-                >
-                  خروج از حساب مدیریت
-                </button>
+              type="button"
+              className="button ghost"
+              onClick={onLogout}
+            >
+              خروج از حساب مدیریت
+            </button>
 
             <button
               type="button"
@@ -1161,7 +1134,6 @@ export default function App({ onLogout }) {
           {notice && (
             <div className="notice" role="status">
               <span>{notice}</span>
-
               <button
                 type="button"
                 aria-label="بستن پیام"
@@ -1183,6 +1155,10 @@ export default function App({ onLogout }) {
 
           {route.type === "seo" && validSection && (
             <SEOManager key={`seo-${revision}`} />
+          )}
+
+          {route.type === "staff" && validSection && (
+            <StaffManager key={`staff-${revision}`} />
           )}
 
           {route.type === "list" && validSection && (

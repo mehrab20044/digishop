@@ -2648,3 +2648,244 @@ td .button {
     border-radius: 20px;
   }
 }
+.account-form {
+  display: grid;
+  gap: 18px;
+}
+
+.account-form fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  display: grid;
+  gap: 18px;
+}
+
+.account-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.account-field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.account-field input,
+.account-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 12px;
+  border: 1px solid #dce4ee;
+  border-radius: 10px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+}
+
+.account-field input:read-only {
+  background: #f5f7fa;
+}
+
+.account-field textarea {
+  resize: vertical;
+}
+
+.account-field input:focus,
+.account-field textarea:focus {
+  outline: 2px solid #b9d5ee;
+  outline-offset: 2px;
+}
+
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.account-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 13px;
+}
+
+.account-check input {
+  width: auto;
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+
+.account-check small {
+  display: block;
+  color: #718096;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  margin-top: 5px;
+}
+
+.account-spacing {
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.account-profile-image {
+  display: block;
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 14px;
+}
+
+.account-address-form {
+  padding: 18px;
+  border: 1px solid #dce4ee;
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+
+.account-confirm {
+  padding: 12px;
+  background: #fff6f2;
+  border-radius: 10px;
+  margin-top: 12px;
+}
+
+.account-permissions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  max-height: 360px;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid #dce4ee;
+  border-radius: 10px;
+}
+
+@media (max-width: 650px) {
+  .account-form-grid,
+  .account-permissions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.staff-access-heading {
+  margin-top: 10px;
+}
+
+.staff-access-heading h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.staff-access-heading p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.9;
+}
+
+.staff-access-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.staff-access-card {
+  padding: 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+  min-width: 0;
+}
+
+.staff-access-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.staff-access-section {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  margin-bottom: 5px;
+}
+
+.staff-access-card h4 {
+  margin: 0;
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.staff-access-all {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.staff-access-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.staff-access-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  font-size: 12px;
+  color: #475569;
+  cursor: pointer;
+}
+
+.staff-access-option.is-selected {
+  border-color: #a5b4fc;
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.staff-access-option.is-delete.is-selected {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.staff-access-all input,
+.staff-access-option input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #4361ee;
+}
+
+.staff-access-note {
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.9;
+}
+
+@media (max-width: 800px) {
+  .staff-access-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

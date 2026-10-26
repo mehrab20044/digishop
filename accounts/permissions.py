@@ -7,10 +7,7 @@ class HasCompleteProfile(BasePermission):
     message = "ابتدا پروفایل و آدرس خود را تکمیل کنید."
 
     def has_permission(self, request, view):
-        if (
-            not request.user
-            or not request.user.is_authenticated
-        ):
+        if not request.user or not request.user.is_authenticated:
             return False
 
         require_complete_profile(request.user)
