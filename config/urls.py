@@ -49,3 +49,7 @@ if settings.DEBUG:
         settings.MEDIA_URL,
         document_root=settings.MEDIA_ROOT,
     )
+
+
+# DigiShop cart routes
+urlpatterns += [path("api/v1/cart/", include("cart.urls"))]

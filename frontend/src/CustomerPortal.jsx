@@ -15,7 +15,7 @@ function customerDestination() {
   try {
     const url = new URL(next, window.location.origin);
     const path = url.pathname.replace(/\/+$/, "") || "/";
-    if (url.origin === window.location.origin && (path === "/" || /^\/products(?:\/[1-9][0-9]*)?$/.test(path))) {
+    if (url.origin === window.location.origin && (path === "/" || path === "/cart" || /^\/products(?:\/[1-9][0-9]*)?$/.test(path))) {
       return path + url.search;
     }
   } catch { /* Ignore invalid destinations. */ }

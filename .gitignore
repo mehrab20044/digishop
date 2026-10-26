@@ -34,3 +34,6 @@ staticfiles/
 
 # Logs
 *.log
+cart-backup-*/
+.digishop-cart-install.json
+digishop-cart-package/

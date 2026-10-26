@@ -1,4 +1,7 @@
 
+import { CartProvider, CartBadge } from './cart/CartProvider';
+import AddToCart from './cart/AddToCart';
+import CartPage from './cart/CartPage';
 import { useEffect, useState } from 'react';
 import { catalogHref, cover, getStore, money, number, pageNumber, safeImage } from './storefront/store-api';
 import './storefront/storefront.css';
@@ -55,7 +58,7 @@ function Header({ search }) {
       <div className="sf-container sf-header-main">
         <a className="sf-brand" href="/" aria-label="دیجی‌شاپ، صفحه اصلی"><span className="sf-brand-symbol">D<span /></span><span>دیجی‌شاپ<small>DIGISHOP</small></span></a>
         <form className="sf-search" action="/products" method="get" role="search"><Icon name="search" /><input name="search" aria-label="جست‌وجوی محصول" placeholder="دنبال چه محصولی می‌گردی؟" defaultValue={search} maxLength={150} /><button type="submit">جست‌وجو</button></form>
-        <StoreCustomerLink />
+        <StoreCustomerLink /><CartBadge />
       </div>
       <nav className="sf-container sf-nav" aria-label="منوی فروشگاه"><a href="/products"><Icon name="grid" size={18} />همهٔ محصولات</a><a href="/products?in_stock=true">کالاهای موجود</a><a href="/products?ordering=-created_at">جدیدترین‌ها</a><span>فروشگاه آنلاین کالای دیجیتال</span></nav>
     </header>
@@ -135,7 +138,7 @@ function ProductContent({ product }) {
     <section className="sf-detail"><div className="sf-gallery"><div className="sf-main-image"><ProductImage key={gallery[imageIndex]?.image} src={gallery[imageIndex]?.image} name={product.name} eager /></div>{gallery.length > 1 && <div className="sf-thumbnails" aria-label="تصاویر محصول">{gallery.map((image, index) => <button className={index === imageIndex ? 'is-active' : ''} aria-label={`تصویر ${number(index + 1)}`} aria-pressed={index === imageIndex} onClick={() => setImageIndex(index)} key={image.id}><ProductImage src={image.image} name={`${product.name}، تصویر ${number(index + 1)}`} /></button>)}</div>}{product.gallery_description && <p className="sf-gallery-caption">{product.gallery_description}</p>}</div>
       <div className="sf-detail-copy"><span className="sf-overline">{product.brand?.name || product.category?.name}</span><h1>{product.name}</h1><p className="sf-detail-intro">{product.short_description}</p><span className={`sf-availability ${available ? '' : 'sf-availability-off'}`}><span />{available ? 'موجود در فروشگاه' : 'این انتخاب فعلاً ناموجود است'}</span>
         {variants.length > 0 && <fieldset className="sf-variants"><legend>رنگ و حافظه را انتخاب کن</legend><div>{variants.map(variant => <button key={variant.id} type="button" className={variant.id === selectedId ? 'is-active' : ''} aria-pressed={variant.id === selectedId} onClick={() => setSelectedId(variant.id)}><b>{[variant.color, variant.storage].filter(Boolean).join(' / ')}</b><span>{variant.stock > 0 && variant.price > 0 ? money(variant.price) : 'ناموجود'}</span></button>)}</div></fieldset>}
-        <div className="sf-purchase"><span>قیمت {selected ? 'تنوع انتخاب‌شده' : 'محصول'}</span><strong>{price !== null && price !== undefined ? money(price) : 'ناموجود'}</strong>{selected && <small>کد کالا: <bdi>{selected.sku}</bdi></small>}<button className="sf-button" type="button" disabled><Icon name="bag" size={20} />افزودن به سبد خرید</button><p>امکان خرید آنلاین پس از راه‌اندازی سبد خرید فعال می‌شود.</p></div>
+        <div className="sf-purchase"><span>قیمت {selected ? 'تنوع انتخاب‌شده' : 'محصول'}</span><strong>{price !== null && price !== undefined ? money(price) : 'ناموجود'}</strong>{selected && <small>کد کالا: <bdi>{selected.sku}</bdi></small>}<AddToCart key={`${product.id}:${selected?.id || 0}`} product={product} variant={selected} available={available} /></div>
       </div>
     </section>
     <div className="sf-detail-sections"><section><h2>دربارهٔ محصول</h2><p>{product.long_description || product.description || 'توضیحات تکمیلی ثبت نشده است.'}</p></section><section><h2>مشخصات فنی</h2><dl>{product.brand && <div><dt>برند</dt><dd>{product.brand.name}</dd></div>}<div><dt>دسته‌بندی</dt><dd>{product.category?.name || '—'}</dd></div>{(product.attribute_values || []).map(item => <div key={item.id}><dt>{item.attribute}</dt><dd>{item.value}</dd></div>)}</dl></section></div>
@@ -150,12 +153,12 @@ export default function Storefront() {
   const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
   const search = window.location.search;
   const home = pathname === '/';
-  
+  const isCart = pathname === '/cart';
   const detail = pathname.match(/^\/products\/([1-9][0-9]*)$/);
   const found = home || pathname === '/products' || Boolean(detail);
   useEffect(() => {
     document.documentElement.lang = 'fa';
-    document.title = home ? 'دیجی‌شاپ | انتخاب هوشمند کالای دیجیتال' : detail ? 'جزئیات محصول | دیجی‌شاپ' : 'محصولات | دیجی‌شاپ';
-  }, [home, pathname]);
-  return <div className="sf-root" dir="rtl" lang="fa"><a className="sf-skip" href="#sf-main">رفتن به محتوای اصلی</a><Header search={new URLSearchParams(search).get('search') || ''} /><main id="sf-main" className="sf-container">{home && <><Hero /><CategoryStrip /></>}{detail ? <ProductDetail id={detail[1]} /> : found ? <Catalog home={home} search={search} /> : <div className="sf-message"><h1>صفحه پیدا نشد</h1><a className="sf-button" href="/">بازگشت به فروشگاه</a></div>}{home && <div className="sf-bottom-banner"><div><span className="sf-overline">انتخاب خوب، از شناخت شروع می‌شود</span><h2>قبل از انتخاب، جزئیات را ببین.</h2><p>مشخصات فنی، تصاویر و تنوع‌های هر محصول را یک‌جا بررسی کن.</p></div><a href="/products">شروع جست‌وجو<Icon name="arrow" /></a></div>}</main><Footer /></div>;
+    document.title = isCart ? 'سبد خرید | دیجی‌شاپ' : home ? 'دیجی‌شاپ | انتخاب هوشمند کالای دیجیتال' : detail ? 'جزئیات محصول | دیجی‌شاپ' : 'محصولات | دیجی‌شاپ';
+  }, [home, pathname, isCart]);
+  return <CartProvider><div className="sf-root" dir="rtl" lang="fa"><a className="sf-skip" href="#sf-main">رفتن به محتوای اصلی</a><Header search={new URLSearchParams(search).get('search') || ''} /><main id="sf-main" className="sf-container">{home && <><Hero /><CategoryStrip /></>}{isCart ? <CartPage /> : detail ? <ProductDetail id={detail[1]} /> : found ? <Catalog home={home} search={search} /> : <div className="sf-message"><h1>صفحه پیدا نشد</h1><a className="sf-button" href="/">بازگشت به فروشگاه</a></div>}{home && <div className="sf-bottom-banner"><div><span className="sf-overline">انتخاب خوب، از شناخت شروع می‌شود</span><h2>قبل از انتخاب، جزئیات را ببین.</h2><p>مشخصات فنی، تصاویر و تنوع‌های هر محصول را یک‌جا بررسی کن.</p></div><a href="/products">شروع جست‌وجو<Icon name="arrow" /></a></div>}</main><Footer /></div></CartProvider>;
 }

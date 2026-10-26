@@ -6,6 +6,7 @@ export default defineConfig({
   server: {
     host: 'localhost',
     proxy: {
+      "/api/v1/cart": { target: "http://127.0.0.1:8000", changeOrigin: true },
       '/products/api/v1': { target: 'http://127.0.0.1:8000', changeOrigin: true },
       '/api/v1/owner': { target: 'http://127.0.0.1:8000', changeOrigin: true },
       '/api/v1/auth': { target: 'http://127.0.0.1:8000', changeOrigin: true },

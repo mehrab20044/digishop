@@ -7,7 +7,7 @@ const customer = createAuthClient({
 const BASE = "/api/v1/auth/";
 
 export const hasSession = customer.hasSession;
-
+export const customerFetch = customer.fetch;
 export const requestOTP = customer.requestOTP;
 export const verifyOTP = customer.verifyOTP;
 export const getProfile = customer.getProfile;
