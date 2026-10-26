@@ -4,14 +4,15 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 from django.forms.models import BaseInlineFormSet
 
-from .forms import CustomUserChangeForm, CustomUserCreationForm
-from .models import Address, Profile
 from accounts.services.profile_service import (
     create_address,
     delete_address,
     get_profile_status,
     update_address,
 )
+
+from .forms import CustomUserChangeForm, CustomUserCreationForm
+from .models import Address, Profile
 
 User = get_user_model()
 

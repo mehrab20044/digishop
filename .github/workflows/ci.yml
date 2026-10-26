@@ -28,6 +28,7 @@ jobs:
 
     env:
       DJANGO_SECRET_KEY: ci-only-secret-key
+      JWT_SIGNING_KEY: ci-only-jwt-signing-key-for-tests-0123456789
       POSTGRES_DB: digishop
       POSTGRES_USER: digishop_user
       POSTGRES_PASSWORD: ci_password

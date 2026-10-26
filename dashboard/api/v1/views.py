@@ -1,5 +1,3 @@
-from accounts.authentication import SessionJWTAuthentication
-from dashboard.permissions import IsManagementSession
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -12,17 +10,18 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from accounts.authentication import SessionJWTAuthentication
 from accounts.models import Address
 from accounts.services.profile_service import get_profile_status
+from accounts.services.staff_service import can_manage
+from dashboard.permissions import IsManagementSession
 from products.models import (
     Attribute,
     Brand,
     Category,
     Product,
 )
-
 from seo.models import SEOSettings
-from accounts.services.staff_service import can_manage
 
 User = get_user_model()
 

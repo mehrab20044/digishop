@@ -1,5 +1,3 @@
-from accounts.authentication import SessionJWTAuthentication
-from dashboard.permissions import IsManagementSession
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
@@ -15,6 +13,8 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from accounts.authentication import SessionJWTAuthentication
+from dashboard.permissions import IsManagementSession
 from seo.models import SEOSettings, SEOSettingsLog
 from seo.services.seo_services import (
     SEOService,

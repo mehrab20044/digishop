@@ -6,13 +6,12 @@ from rest_framework.exceptions import (
 )
 from rest_framework.response import Response
 
-from products.models import Product
-
 from dashboard.api.v1.views import (
     OwnerAPIView,
     detail_data,
     get_resource,
 )
+from products.models import Product
 
 
 class ProductCreateForm(forms.ModelForm):

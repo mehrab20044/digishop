@@ -1,4 +1,3 @@
-from django.utils import timezone
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from threading import Barrier
@@ -15,6 +14,7 @@ from django.db import (
     transaction,
 )
 from django.urls import reverse
+from django.utils import timezone
 from PIL import Image
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -31,11 +31,11 @@ from accounts.models import (
     Profile,
 )
 from accounts.permissions import HasCompleteProfile
+from accounts.services.auth_service import request_otp, verify_otp
 from accounts.services.profile_service import (
     create_address,
     get_profile_status,
 )
-from accounts.services.auth_service import request_otp, verify_otp
 
 User = get_user_model()
 BASE = "/api/v1/auth/"

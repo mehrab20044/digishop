@@ -6,8 +6,8 @@ from django.core.cache import cache
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from products.models import Category, Product, ProductVariant
 from cart.models import Cart, CartItem, CartOperation
+from products.models import Category, Product, ProductVariant
 
 BASE = '/api/v1/cart/'
 

@@ -1,7 +1,5 @@
 from django.urls import path
 
-from seo.dashboard_api import SEOAccessView, SEODashboardView
-
 from dashboard.api.v1.gallery import ProductGalleryView
 from dashboard.api.v1.product_create import ProductCreateView
 from dashboard.api.v1.staff import (
@@ -18,6 +16,7 @@ from dashboard.api.v1.write_views import (
     DashboardUpdateView,
     OwnerCSRFView,
 )
+from seo.dashboard_api import SEOAccessView, SEODashboardView
 
 app_name = "owner_dashboard"
 

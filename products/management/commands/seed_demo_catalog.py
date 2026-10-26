@@ -10,8 +10,14 @@ from django.db import transaction
 from django.utils.text import slugify
 
 from products.models import (
-    Attribute, Brand, Category, CategoryAttribute, Product,
-    ProductAttributeValue, ProductImage, ProductVariant,
+    Attribute,
+    Brand,
+    Category,
+    CategoryAttribute,
+    Product,
+    ProductAttributeValue,
+    ProductImage,
+    ProductVariant,
 )
 
 

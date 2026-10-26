@@ -7,6 +7,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from products.models import Product, ProductVariant
+
 from .models import Cart, CartItem, CartOperation
 
 MAX_LINES = 100

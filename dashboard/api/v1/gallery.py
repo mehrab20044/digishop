@@ -10,14 +10,13 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
+from dashboard.api.v1.views import OwnerAPIView, get_resource
 from products.models import ProductImage
 from products.services.image_service import prepare_product_image
 from products.validators import (
     validate_product_image_content,
     validate_product_image_size,
 )
-
-from dashboard.api.v1.views import OwnerAPIView, get_resource
 
 logger = logging.getLogger(__name__)
 
