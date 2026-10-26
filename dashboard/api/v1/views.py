@@ -1,3 +1,5 @@
+from accounts.authentication import SessionJWTAuthentication
+from dashboard.permissions import IsManagementSession
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -5,10 +7,8 @@ from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from rest_framework import serializers
-from rest_framework.authentication import SessionAuthentication
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -21,25 +21,12 @@ from products.models import (
     Product,
 )
 
-from seo.dashboard_api import CanOpenDashboard
 from seo.models import SEOSettings
 
 User = get_user_model()
 
 
-class IsSiteOwner(BasePermission):
-    message = "ورود با حساب مدیر اصلی سایت الزامی است."
 
-    def has_permission(self, request, view):
-        user = request.user
-
-        return bool(
-            user
-            and user.is_authenticated
-            and user.is_active
-            and user.is_staff
-            and user.is_superuser
-        )
 
 
 class DashboardPagination(PageNumberPagination):
@@ -96,7 +83,6 @@ RESOURCES = {
         "label": "کاربران",
         "columns": [
             ["id", "شناسه"],
-            ["username", "نام کاربری"],
             ["full_name", "نام کامل"],
             ["phone", "موبایل"],
             ["is_active", "فعال"],
@@ -156,13 +142,12 @@ def address_data(address):
             ],
         ),
         "user_id": address.user_id,
-        "user": address.user.username,
+        "user": address.user.phone,
     }
 
 
 def user_phone(user):
-    identity = getattr(user, "phone_identity", None)
-    return identity.phone if identity else None
+    return user.phone
 
 
 def summary_data(resource, obj):
@@ -181,7 +166,7 @@ def summary_data(resource, obj):
         return {
             **pick(
                 obj,
-                ["id", "username", "is_active", "is_staff"],
+                ["id", "phone", "is_active", "is_staff"],
             ),
             "full_name": obj.get_full_name(),
             "phone": user_phone(obj),
@@ -193,7 +178,7 @@ def summary_data(resource, obj):
                 obj,
                 ["id", "recipient_name", "city", "is_default"],
             ),
-            "user": obj.user.username,
+            "user": obj.user.phone,
         }
 
     fields = ["id", "name"]
@@ -285,11 +270,8 @@ def detail_data(resource, obj):
         )
 
         profile = getattr(obj, "profile", None)
-        identity = getattr(obj, "phone_identity", None)
 
-        data["phone_verified_at"] = (
-            identity.verified_at if identity else None
-        )
+        data["phone_verified_at"] = obj.phone_verified_at
 
         data["profile"] = (
             {
@@ -341,6 +323,14 @@ def detail_data(resource, obj):
 
 
 def get_resource(request, resource):
+    if (
+        resource in {"users", "groups", "addresses"}
+        and not request.user.is_superuser
+    ):
+        raise PermissionDenied(
+            "مدیریت این بخش فعلاً فقط برای صاحب سایت مجاز است."
+        )
+
     config = RESOURCES.get(resource)
 
     if config is None:
@@ -370,7 +360,6 @@ def get_resource(request, resource):
 
     elif resource == "users":
         queryset = queryset.select_related(
-            "phone_identity",
             "profile",
         ).prefetch_related(
             "addresses__user",
@@ -392,30 +381,31 @@ def get_resource(request, resource):
 
 @method_decorator(never_cache, name="dispatch")
 class OwnerAPIView(APIView):
-    authentication_classes = [SessionAuthentication]
-    permission_classes = [IsSiteOwner]
+    authentication_classes = [SessionJWTAuthentication]
+    permission_classes = [IsManagementSession]
     http_method_names = ["get", "head", "options"]
 
 
-class DashboardIndexView(OwnerAPIView):
-    permission_classes = [CanOpenDashboard]
 
+class DashboardIndexView(OwnerAPIView):
     def get(self, request):
         resources = []
+        user = request.user
+
+        creatable = {"products", "categories", "brands", "attributes"}
+        editable = {"products", "categories", "brands", "attributes"}
 
         for key, config in RESOURCES.items():
-            if not request.user.is_superuser:
+            if key == "addresses":
                 continue
 
-            if key == "addresses":
+            if key in {"users", "groups"} and not user.is_superuser:
                 continue
 
             if not admin.site.is_registered(config["model"]):
                 continue
 
-            model_admin = admin.site.get_model_admin(
-                config["model"],
-            )
+            model_admin = admin.site.get_model_admin(config["model"])
 
             if not model_admin.has_view_permission(request):
                 continue
@@ -425,23 +415,49 @@ class DashboardIndexView(OwnerAPIView):
                 "label": config["label"],
                 "columns": config["columns"],
                 "count": model_admin.get_queryset(request).count(),
+                "capabilities": {
+                    "view": True,
+                    "add": (
+                        key in creatable
+                        and model_admin.has_add_permission(request)
+                    ),
+                    "change": (
+                        key in editable
+                        and model_admin.has_change_permission(request)
+                    ),
+                    "delete": False,
+                },
             })
 
-        # SEO is added once, outside the loop.
-        resources.append({
-            "key": "seo",
-            "label": "مدیریت SEO",
-            "columns": [],
-            "count": SEOSettings.objects.count(),
-        })
+        seo_permissions = (
+            "seo.view_seosettings",
+            "seo.change_seosettings",
+            "seo.view_seosettingslog",
+        )
+
+        if any(user.has_perm(item) for item in seo_permissions):
+            resources.append({
+                "key": "seo",
+                "label": "مدیریت SEO",
+                "columns": [],
+                "count": SEOSettings.objects.count(),
+                "capabilities": {
+                    "view": True,
+                    "add": False,
+                    "change": user.has_perm("seo.change_seosettings"),
+                    "delete": False,
+                },
+            })
 
         return Response({
             "user": {
-                "username": request.user.username,
-                "full_name": request.user.get_full_name(),
+                "phone": user.phone,
+                "username": user.phone,
+                "full_name": user.get_full_name(),
             },
             "resources": resources,
         })
+
 
 
 class DashboardListView(OwnerAPIView):

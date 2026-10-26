@@ -1,3 +1,4 @@
+import { managementFetch } from "./managementAuth";
 import { useEffect, useRef, useState } from "react";
 
 import DashboardHome from "./DashboardHome";
@@ -260,7 +261,7 @@ function useApi(path) {
 
     async function load() {
       try {
-        const response = await fetch(`${BASE}${path}`, {
+        const response = await managementFetch(`${BASE}${path}`, {
           credentials: "same-origin",
           headers: { Accept: "application/json" },
           cache: "no-store",
@@ -501,8 +502,9 @@ function ResourceList({
   const list = useApi(`${resource.key}/?${params}`);
 
   const canCreate =
-    resource.key === "products" ||
-    CREATABLE.includes(resource.key);
+    resource.capabilities?.add &&
+    (resource.key === "products" ||
+      CREATABLE.includes(resource.key));
 
   function submitSearch(event) {
     event.preventDefault();
@@ -612,7 +614,7 @@ function ResourceList({
                           مشاهده
                         </PageLink>
 
-                        {EDITABLE.includes(resource.key) && (
+                        {(resource.capabilities?.change && EDITABLE.includes(resource.key)) && (
                           <PageLink
                             href={`${base}/${row.id}/edit${query}`}
                             navigate={navigate}
@@ -741,7 +743,7 @@ function ResourceRecord({
   const detailHref = `${base}/${route.id}${query}`;
   const editing = route.type === "edit";
   const isProduct = resource.key === "products";
-  const canEdit = EDITABLE.includes(resource.key);
+  const canEdit = (resource.capabilities?.change && EDITABLE.includes(resource.key));
 
   const detail = useApi(
     `${resource.key}/${route.id}/?refresh=${revision}`,
@@ -832,7 +834,7 @@ function ResourceRecord({
             </span>
           </div>
 
-          {isProduct && (
+          {isProduct && canEdit && (
             <ProductPublication
               key={`publication-${route.id}-${revision}`}
               product={detail.data}
@@ -865,7 +867,7 @@ function ResourceCreate({
   const listHref = `/dashboard/${resource.key}${query}`;
   const isProduct = resource.key === "products";
 
-  if (!isProduct && !CREATABLE.includes(resource.key)) {
+  if (!resource.capabilities?.add || (!isProduct && !CREATABLE.includes(resource.key))) {
     return (
       <Unavailable
         navigate={navigate}
@@ -901,7 +903,7 @@ function ResourceCreate({
 
 /* Application */
 
-export default function App() {
+export default function App({ onLogout }) {
   const [revision, setRevision] = useState(0);
   const [notice, setNotice] = useState("");
 
@@ -1003,20 +1005,18 @@ export default function App() {
 
               {forbidden && (
                 <p>
-                  با حساب مجاز مدیریت وارد Django Admin
-                  شو و به این صفحه برگرد.
+                  با حساب مجاز وارد بخش مدیریت شوید.
                 </p>
               )}
 
               <PageActions>
-                <a
-                  className="button primary"
-                  href="http://localhost:8000/admin/"
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  type="button"
+                  className="button ghost"
+                  onClick={onLogout}
                 >
-                  ورود به Django Admin
-                </a>
+                  خروج از حساب مدیریت
+                </button>
 
                 <button
                   type="button"
@@ -1038,8 +1038,7 @@ export default function App() {
   }
 
   const username =
-    index.data.user.full_name ||
-    index.data.user.username;
+    index.data.user.full_name?.trim() || "مدیر فروشگاه";
 
   const validSection = Boolean(current);
 
@@ -1127,14 +1126,13 @@ export default function App() {
               gap: 10,
             }}
           >
-            <a
-              className="button ghost"
-              href="http://localhost:8000/admin/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Django Admin
-            </a>
+            <button
+                  type="button"
+                  className="button ghost"
+                  onClick={onLogout}
+                >
+                  خروج از حساب مدیریت
+                </button>
 
             <button
               type="button"

@@ -161,6 +161,9 @@ REST_FRAMEWORK = {
         "DEFAULT_THROTTLE_RATES": {
         "auth_ip": "30/min",
     },
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+    "accounts.authentication.SessionJWTAuthentication",
+],
 }
 
 
@@ -202,3 +205,23 @@ if DEBUG:
             "http://localhost:5173",
         ])
     )
+
+
+SMS_BACKEND = os.environ.get(
+    "SMS_BACKEND",
+    "console",
+).strip().lower()
+
+SMSIR_API_KEY = os.environ.get(
+    "SMSIR_API_KEY",
+    "",
+).strip()
+
+SMSIR_TEMPLATE_ID = os.environ.get(
+    "SMSIR_TEMPLATE_ID",
+    "",
+).strip()
+
+
+
+AUTH_USER_MODEL = "accounts.User"

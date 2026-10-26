@@ -8,7 +8,7 @@ from rest_framework.exceptions import (
     ValidationError,
 )
 
-from accounts.models import Address, PhoneIdentity, Profile
+from accounts.models import Address, Profile
 
 User = get_user_model()
 
@@ -22,9 +22,7 @@ def get_profile_status(user):
     if not user.last_name.strip():
         missing.append("last_name")
 
-    if not PhoneIdentity.objects.filter(
-        user_id=user.pk,
-    ).exists():
+    if not user.phone or user.phone_verified_at is None:
         missing.append("phone")
 
     valid_address = False

@@ -1,3 +1,4 @@
+import { managementFetch } from "./managementAuth";
 import { useEffect, useRef, useState } from "react";
 
 const BASE = "/api/v1/owner/";
@@ -34,7 +35,7 @@ export default function ProductGallery({ productId }) {
   useEffect(() => {
     const controller = new AbortController();
 
-    fetch(`${BASE}products/${productId}/gallery/`, {
+    managementFetch(`${BASE}products/${productId}/gallery/`, {
       credentials: "same-origin",
       headers: { Accept: "application/json" },
       cache: "no-store",
@@ -109,7 +110,7 @@ export default function ProductGallery({ productId }) {
 
     try {
       const csrf = await readResponse(
-        await fetch(`${BASE}csrf/`, {
+        await managementFetch(`${BASE}csrf/`, {
           credentials: "same-origin",
           headers: { Accept: "application/json" },
           cache: "no-store",
@@ -123,7 +124,7 @@ export default function ProductGallery({ productId }) {
       });
 
       const data = await readResponse(
-        await fetch(`${BASE}products/${productId}/gallery/`, {
+        await managementFetch(`${BASE}products/${productId}/gallery/`, {
           method: "POST",
           credentials: "same-origin",
           headers: {

@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 from django.forms.models import BaseInlineFormSet
 
+from .forms import CustomUserChangeForm, CustomUserCreationForm
 from .models import Address, Profile
 from accounts.services.profile_service import (
     create_address,
@@ -28,8 +29,7 @@ ADDRESS_FIELDS = [
 
 
 def phone_for(user):
-    identity = getattr(user, "phone_identity", None)
-    return identity.phone if identity else "—"
+    return user.phone
 
 
 class ProfileInline(admin.StackedInline):
@@ -82,10 +82,12 @@ if admin.site.is_registered(Profile):
 
 @admin.register(User)
 class ShopUserAdmin(UserAdmin):
+    form = CustomUserChangeForm
+    add_form = CustomUserCreationForm
     inlines = [ProfileInline, AddressInline]
+    ordering = ["-date_joined"]
 
     list_display = [
-        "username",
         "phone",
         "first_name",
         "last_name",
@@ -93,69 +95,43 @@ class ShopUserAdmin(UserAdmin):
         "is_active",
         "is_staff",
     ]
-    search_fields = [
-        "username",
-        "first_name",
-        "last_name",
-        "phone_identity__phone",
-    ]
-    list_select_related = ["phone_identity"]
+    search_fields = ["phone", "first_name", "last_name", "email"]
+    list_select_related = []
     readonly_fields = [
-        *UserAdmin.readonly_fields,
-        "phone",
+        "phone_verified_at",
         "completed",
+        "last_login",
+        "date_joined",
     ]
 
     fieldsets = (
-        (
-            "حساب کاربری",
-            {
-                "fields": (
-                    "username",
-                    "password",
-                    "phone",
-                    "completed",
-                ),
-            },
-        ),
-        (
-            "اطلاعات شخصی",
-            {
-                "fields": (
-                    "first_name",
-                    "last_name",
-                    "email",
-                ),
-            },
-        ),
-        (
-            "دسترسی‌ها",
-            {
-                "classes": ("collapse",),
-                "fields": (
-                    "is_active",
-                    "is_staff",
-                    "is_superuser",
-                    "groups",
-                    "user_permissions",
-                ),
-            },
-        ),
-        (
-            "تاریخ‌ها",
-            {
-                "classes": ("collapse",),
-                "fields": (
-                    "last_login",
-                    "date_joined",
-                ),
-            },
-        ),
+        ("حساب کاربری", {
+            "fields": ("phone", "password", "phone_verified_at", "completed"),
+        }),
+        ("اطلاعات شخصی", {
+            "fields": ("first_name", "last_name", "email"),
+        }),
+        ("دسترسی‌ها", {
+            "fields": (
+                "is_active", "is_staff", "is_superuser",
+                "groups", "user_permissions",
+            ),
+        }),
+        ("تاریخ‌ها", {
+            "fields": ("last_login", "date_joined"),
+        }),
     )
 
-    @admin.display(description="شماره موبایل")
-    def phone(self, obj):
-        return phone_for(obj)
+    add_fieldsets = (
+        (None, {
+            "classes": ("wide",),
+            "fields": ("phone", "password1", "password2"),
+        }),
+    )
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = list(self.readonly_fields)
+        return fields + ["phone"] if obj else fields
 
     @admin.display(
         boolean=True,
@@ -217,7 +193,7 @@ class AddressAdmin(admin.ModelAdmin):
         "is_default",
     ]
     search_fields = [
-        "user__username",
+        "user__phone",
         "recipient_name",
         "recipient_phone",
     ]

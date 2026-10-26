@@ -1,3 +1,4 @@
+import { managementFetch } from "./managementAuth";
 import { useEffect, useState } from "react";
 
 const BASE = "/api/v1/owner/seo/";
@@ -9,7 +10,7 @@ const permissionLabels = {
 };
 
 async function request(path = "", options = {}) {
-  const response = await fetch(`${BASE}${path}`, {
+  const response = await managementFetch(`${BASE}${path}`, {
     credentials: "same-origin",
     cache: "no-store",
     ...options,

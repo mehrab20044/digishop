@@ -1,3 +1,4 @@
+import { managementFetch } from "./managementAuth";
 import { useState } from "react";
 
 function initialMode(product) {
@@ -44,7 +45,7 @@ export default function ProductPublication({
     };
 
     try {
-      const csrfResponse = await fetch(
+      const csrfResponse = await managementFetch(
         "/api/v1/owner/csrf/",
         {
           credentials: "same-origin",
@@ -59,7 +60,7 @@ export default function ProductPublication({
         throw new Error(messageFrom(csrf));
       }
 
-      const response = await fetch(
+      const response = await managementFetch(
         `/api/v1/owner/products/${product.id}/edit/`,
         {
           method: "PATCH",

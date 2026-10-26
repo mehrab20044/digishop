@@ -1,20 +1,21 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, serializers, status
-from rest_framework.permissions import (
-    AllowAny,
-    IsAuthenticated,
-)
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.settings import api_settings
-from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.views import TokenRefreshView
 
-from accounts.models import Address, Profile
+from accounts.models import Address, OTPChallenge, Profile
+from accounts.services.auth_service import (
+    logout_all_sessions,
+    logout_session,
+    refresh_session,
+    request_otp,
+    verify_otp,
+)
 from accounts.services.profile_service import delete_address
-from accounts.services.auth_service import request_otp, verify_otp
 from accounts.throttles import AuthIPThrottle
 
 from .serializers import (
@@ -29,46 +30,57 @@ from .serializers import (
 )
 
 
-class OTPRequestView(generics.GenericAPIView):
-    serializer_class = OTPRequestSerializer
-    permission_classes = [AllowAny]
-    authentication_classes = []
-    throttle_classes = [AuthIPThrottle]
-
-    @extend_schema(
-        responses={200: OTPRequestResponseSerializer},
+class RefreshSerializer(serializers.Serializer):
+    refresh = serializers.CharField(
+        max_length=8192,
+        trim_whitespace=False,
     )
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        request_otp(serializer.validated_data["phone"])
-
-        return Response({
-            "detail": "کد تأیید ارسال شد.",
-            "retry_after": settings.OTP_RESEND_SECONDS,
-        })
 
 
-class OTPVerifyView(generics.GenericAPIView):
-    serializer_class = OTPVerifySerializer
+@method_decorator(never_cache, name="dispatch")
+class PublicAuthView(generics.GenericAPIView):
     permission_classes = [AllowAny]
     authentication_classes = []
     throttle_classes = [AuthIPThrottle]
+    purpose = OTPChallenge.Purpose.CUSTOMER
 
     def get_authenticate_header(self, request):
         return "Bearer"
 
-    @extend_schema(
-        responses={200: OTPVerifyResponseSerializer},
-    )
+
+class OTPRequestView(PublicAuthView):
+    serializer_class = OTPRequestSerializer
+
+    @extend_schema(responses={200: OTPRequestResponseSerializer})
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        result = verify_otp(**serializer.validated_data)
+        request_otp(
+            serializer.validated_data["phone"],
+            purpose=self.purpose,
+        )
 
-        data = {
+        return Response({
+            "detail": "در صورت مجاز بودن درخواست، کد تأیید ارسال می‌شود.",
+            "retry_after": settings.OTP_RESEND_SECONDS,
+        })
+
+
+class OTPVerifyView(PublicAuthView):
+    serializer_class = OTPVerifySerializer
+
+    @extend_schema(responses={200: OTPVerifyResponseSerializer})
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        result = verify_otp(
+            **serializer.validated_data,
+            purpose=self.purpose,
+        )
+
+        return Response({
             "access": result["access"],
             "refresh": result["refresh"],
             "is_new_user": result["is_new_user"],
@@ -76,39 +88,37 @@ class OTPVerifyView(generics.GenericAPIView):
                 result["user"],
                 context=self.get_serializer_context(),
             ).data,
-        }
-        return Response(data)
+        })
 
 
-class RefreshView(TokenRefreshView):
-    throttle_classes = [AuthIPThrottle]
+class RefreshView(PublicAuthView):
+    serializer_class = RefreshSerializer
 
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-class ProfileView(generics.RetrieveUpdateAPIView):
-    serializer_class = ProfileSerializer
-    permission_classes = [IsAuthenticated]
-    http_method_names = [
-        "get",
-        "patch",
-        "head",
-        "options",
-    ]
-
-    def get_object(self):
-        Profile.objects.get_or_create(
-            user=self.request.user,
-        )
-
-        return (
-            get_user_model()
-            .objects.select_related(
-                "profile",
-                "phone_identity",
-            )
-            .get(pk=self.request.user.pk)
+        return Response(
+            refresh_session(
+                serializer.validated_data["refresh"],
+                purpose=self.purpose,
+            ),
         )
 
 
+class ManagementOTPRequestView(OTPRequestView):
+    purpose = OTPChallenge.Purpose.MANAGEMENT
+
+
+class ManagementOTPVerifyView(OTPVerifyView):
+    purpose = OTPChallenge.Purpose.MANAGEMENT
+
+
+class ManagementRefreshView(RefreshView):
+    purpose = OTPChallenge.Purpose.MANAGEMENT
+
+
+@method_decorator(never_cache, name="dispatch")
 class LogoutView(generics.GenericAPIView):
     serializer_class = LogoutSerializer
     permission_classes = [IsAuthenticated]
@@ -118,31 +128,39 @@ class LogoutView(generics.GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        try:
-            token = RefreshToken(
-                serializer.validated_data["refresh"],
-            )
-        except TokenError as exc:
-            raise serializers.ValidationError({
-                "refresh": "توکن نامعتبر یا باطل شده است."
-            }) from exc
-
-        token_user_id = token.get(
-            api_settings.USER_ID_CLAIM,
-        )
-        current_user_id = getattr(
+        logout_session(
             request.user,
-            api_settings.USER_ID_FIELD,
+            request.auth,
+            serializer.validated_data["refresh"],
         )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
-        if str(token_user_id) != str(current_user_id):
-            raise serializers.ValidationError({
-                "refresh": "این توکن متعلق به حساب شما نیست."
-            })
 
-        token.blacklist()
-        return Response(
-            status=status.HTTP_204_NO_CONTENT,
+@method_decorator(never_cache, name="dispatch")
+class LogoutAllView(generics.GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = serializers.Serializer
+
+    @extend_schema(responses={204: None})
+    def post(self, request, *args, **kwargs):
+        logout_all_sessions(request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@method_decorator(never_cache, name="dispatch")
+class ProfileView(generics.RetrieveUpdateAPIView):
+    serializer_class = ProfileSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ["get", "patch", "head", "options"]
+
+    def get_object(self):
+        Profile.objects.get_or_create(user=self.request.user)
+
+        return (
+            get_user_model()
+            .objects.select_related("profile")
+            .prefetch_related("addresses")
+            .get(pk=self.request.user.pk)
         )
 
 
@@ -172,34 +190,22 @@ class AddressListCreateView(generics.ListCreateAPIView):
         if getattr(self, "swagger_fake_view", False):
             return Address.objects.none()
 
-        return Address.objects.filter(
-            user=self.request.user,
-        )
+        return Address.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
 
-class AddressDetailView(
-    generics.RetrieveUpdateDestroyAPIView,
-):
+class AddressDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AddressSerializer
     permission_classes = [IsAuthenticated]
-    http_method_names = [
-        "get",
-        "patch",
-        "delete",
-        "head",
-        "options",
-    ]
+    http_method_names = ["get", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Address.objects.none()
 
-        return Address.objects.filter(
-            user=self.request.user,
-        )
+        return Address.objects.filter(user=self.request.user)
 
     def perform_destroy(self, instance):
         delete_address(instance)

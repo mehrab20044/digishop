@@ -1,3 +1,4 @@
+import { managementFetch } from "./managementAuth";
 import { useState } from "react";
 
 export const EDITABLE = [
@@ -113,7 +114,7 @@ export default function Editor({
     setErrors(null);
 
     try {
-      const csrfResponse = await fetch(
+      const csrfResponse = await managementFetch(
         "/api/v1/owner/csrf/",
         {
           credentials: "same-origin",
@@ -128,7 +129,7 @@ export default function Editor({
         ? `${resource.key}/${initial.id}/edit/`
         : `${resource.key}/create/`;
 
-      const response = await fetch(
+      const response = await managementFetch(
         `/api/v1/owner/${path}`,
         {
           method: initial ? "PATCH" : "POST",

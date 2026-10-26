@@ -1,9 +1,13 @@
+from uuid import uuid4
+
 from django.conf import settings
+from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone
 
+from .managers import UserManager
 from .profile_validators import validate_avatar
 
 phone_validator = RegexValidator(
@@ -12,41 +16,84 @@ phone_validator = RegexValidator(
 )
 
 
-class PhoneIdentity(models.Model):
-    user = models.OneToOneField(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="phone_identity",
-    )
+class User(AbstractUser):
+    username = None
+
     phone = models.CharField(
+        "شماره موبایل",
         max_length=11,
         unique=True,
         validators=[phone_validator],
     )
-    verified_at = models.DateTimeField(auto_now_add=True)
+    phone_verified_at = models.DateTimeField(
+        "زمان تأیید شماره",
+        null=True,
+        blank=True,
+        editable=False,
+    )
+
+    USERNAME_FIELD = "phone"
+    REQUIRED_FIELDS = []
+
+    objects = UserManager()
 
     def __str__(self):
         return self.phone
 
 
 class OTPChallenge(models.Model):
+    class Purpose(models.TextChoices):
+        CUSTOMER = "customer", "مشتری"
+        MANAGEMENT = "management", "مدیریت"
+
     phone = models.CharField(
         max_length=11,
-        unique=True,
         validators=[phone_validator],
+    )
+    purpose = models.CharField(
+        max_length=20,
+        choices=Purpose.choices,
+        default=Purpose.CUSTOMER,
     )
     code_hash = models.CharField(max_length=128, blank=True)
     expires_at = models.DateTimeField()
     last_sent_at = models.DateTimeField()
     failed_attempts = models.PositiveSmallIntegerField(default=0)
     consumed_at = models.DateTimeField(null=True, blank=True)
-    send_window_started_at = models.DateTimeField(
-        default=timezone.now,
-    )
+    send_window_started_at = models.DateTimeField(default=timezone.now)
     send_count = models.PositiveSmallIntegerField(default=0)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["phone", "purpose"],
+                name="accounts_unique_phone_otp_purpose",
+            ),
+        ]
+
     def __str__(self):
-        return self.phone
+        return f"{self.phone} / {self.purpose}"
+
+
+class AuthSession(models.Model):
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid4,
+        editable=False,
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="auth_sessions",
+    )
+    purpose = models.CharField(
+        max_length=20,
+        choices=OTPChallenge.Purpose.choices,
+    )
+    refresh_jti = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
 
 
 class Profile(models.Model):
@@ -60,18 +107,12 @@ class Profile(models.Model):
         blank=True,
         validators=[validate_avatar],
     )
-    description = models.TextField(
-        blank=True,
-        max_length=2000,
-    )
+    description = models.TextField(blank=True, max_length=2000)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return (
-            self.user.get_full_name().strip()
-            or self.user.username
-        )
+        return self.user.get_full_name().strip() or self.user.phone
 
 
 class Address(models.Model):
@@ -116,19 +157,17 @@ class Address(models.Model):
     def clean(self):
         super().clean()
 
-        required = [
+        errors = {}
+        for field in (
             "recipient_name",
             "province",
             "city",
             "street_address",
             "building_number",
-        ]
-        errors = {}
-
-        for name in required:
-            value = getattr(self, name, "")
+        ):
+            value = getattr(self, field, "")
             if not value or not value.strip():
-                errors[name] = "این فیلد الزامی است."
+                errors[field] = "این فیلد الزامی است."
 
         if errors:
             raise ValidationError(errors)

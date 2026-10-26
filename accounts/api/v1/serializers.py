@@ -141,7 +141,6 @@ class ProfileSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "id",
-            "username",
             "phone",
             "first_name",
             "last_name",
@@ -156,13 +155,11 @@ class ProfileSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
-            "username",
             "phone",
         ]
 
     def get_phone(self, obj) -> str | None:
-        identity = getattr(obj, "phone_identity", None)
-        return identity.phone if identity else None
+        return obj.phone
 
     def _state(self, obj):
         states = getattr(self, "_states", None)

@@ -1,3 +1,4 @@
+import { managementFetch } from "./managementAuth";
 import { useEffect, useRef, useState } from "react";
 
 const BASE = "/api/v1/owner/";
@@ -60,7 +61,7 @@ async function loadAll(resource, signal) {
   let page = 1;
 
   while (true) {
-    const response = await fetch(
+    const response = await managementFetch(
       `${BASE}${resource}/?page=${page}`,
       {
         credentials: "same-origin",
@@ -214,7 +215,7 @@ export default function ProductCreate({ onClose, onSaved }) {
       setProgress("در حال بررسی اتصال…");
 
       const csrf = await readResponse(
-        await fetch(`${BASE}csrf/`, {
+        await managementFetch(`${BASE}csrf/`, {
           credentials: "same-origin",
           headers: { Accept: "application/json" },
           cache: "no-store",
@@ -228,7 +229,7 @@ export default function ProductCreate({ onClose, onSaved }) {
         setProgress("در حال ساخت محصول…");
 
         product = await readResponse(
-          await fetch(`${BASE}products/create/`, {
+          await managementFetch(`${BASE}products/create/`, {
             method: "POST",
             credentials: "same-origin",
             headers: {
@@ -264,7 +265,7 @@ export default function ProductCreate({ onClose, onSaved }) {
         });
 
         await readResponse(
-          await fetch(
+          await managementFetch(
             `${BASE}products/${product.id}/gallery/`,
             {
               method: "POST",

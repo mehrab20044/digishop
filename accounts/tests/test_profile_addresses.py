@@ -1,3 +1,4 @@
+from django.utils import timezone
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from threading import Barrier
@@ -27,7 +28,6 @@ from rest_framework.views import APIView
 from accounts.models import (
     Address,
     OTPChallenge,
-    PhoneIdentity,
     Profile,
 )
 from accounts.permissions import HasCompleteProfile
@@ -52,12 +52,9 @@ def clear_cache():
 @pytest.fixture
 def customer():
     user = User.objects.create_user(
-        username="profile_customer",
-        password=None,
-    )
-    PhoneIdentity.objects.create(
-        user=user,
         phone="09123456789",
+        phone_verified_at=timezone.now(),
+        password=None,
     )
     Profile.objects.create(user=user)
     return user
@@ -160,7 +157,7 @@ def test_incomplete_user_can_view_and_edit_own_profile(
 
     assert customer.first_name == "Mehrab"
     assert customer.profile.description == "Backend engineer"
-    assert "username" in response.data
+    assert "phone" in response.data
 
 
 def test_completion_is_atomic_when_no_address(api, customer):
@@ -408,9 +405,9 @@ def test_completion_flag_cannot_be_forged(api):
     assert response.status_code == 200
     assert response.data["profile_completed"] is False
     assert response.data["phone"] == "09123456789"
-    assert response.data["username"] == "profile_customer"
+    assert response.data["phone"] == "09123456789"
     assert not User.objects.get(
-        username="profile_customer",
+        phone="09123456789",
     ).is_staff
 
 
@@ -423,7 +420,7 @@ def test_cannot_access_another_users_address(
     address_data,
     method,
 ):
-    other = User.objects.create_user(username="other")
+    other = User.objects.create_user(phone="09987654321")
     address = create_address(other, address_data)
 
     response = getattr(api, method)(
@@ -438,7 +435,7 @@ def test_address_list_and_profile_hide_other_users_addresses(
     api,
     address_data,
 ):
-    other = User.objects.create_user(username="other")
+    other = User.objects.create_user(phone="09987654321")
     create_address(other, address_data)
 
     response = api.get(BASE + "addresses/")
@@ -457,7 +454,7 @@ def test_create_address_ignores_forged_owner(
     customer,
     address_data,
 ):
-    other = User.objects.create_user(username="other")
+    other = User.objects.create_user(phone="09987654321")
 
     response = api.post(
         BASE + "addresses/",
@@ -602,51 +599,6 @@ def test_swagger_documents_verified_login_response(api):
     assert ref.endswith("/OTPVerifyResponse")
 
 
-@pytest.mark.django_db(transaction=True)
-def test_backfill_migration_preserves_existing_account_data():
-    from django.db.migrations.executor import MigrationExecutor
-
-    targets = (
-        MigrationExecutor(connection)
-        .loader.graph.leaf_nodes()
-    )
-    old_target = [("accounts", "0001_initial")]
-
-    try:
-        executor = MigrationExecutor(connection)
-        executor.migrate(old_target)
-        apps = executor.loader.project_state(
-            old_target,
-        ).apps
-
-        OldUser = apps.get_model("auth", "User")
-        OldIdentity = apps.get_model(
-            "accounts",
-            "PhoneIdentity",
-        )
-
-        old_user = OldUser.objects.create(
-            username="migration_user",
-            first_name="Existing",
-        )
-        OldIdentity.objects.create(
-            user_id=old_user.pk,
-            phone="09999999999",
-        )
-
-        MigrationExecutor(connection).migrate(targets)
-
-        assert Profile.objects.filter(
-            user_id=old_user.pk,
-        ).count() == 1
-        assert User.objects.get(
-            pk=old_user.pk,
-        ).first_name == "Existing"
-        assert PhoneIdentity.objects.get(
-            user_id=old_user.pk,
-        ).phone == "09999999999"
-    finally:
-        MigrationExecutor(connection).migrate(targets)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -683,11 +635,11 @@ def test_concurrent_signup_consumes_code_only_once():
 
     assert sorted(results) == ["ok", "rejected"]
 
-    identity = PhoneIdentity.objects.get(
+    identity = User.objects.get(
         phone="09999999999",
     )
     assert Profile.objects.filter(
-        user_id=identity.user_id,
+        user_id=identity.pk,
     ).count() == 1
 
 
@@ -703,7 +655,7 @@ def test_signup_profile_failure_rolls_back_account_and_code_consumption():
         with pytest.raises(RuntimeError):
             verify_otp("09999999999", code)
 
-    assert not PhoneIdentity.objects.filter(
+    assert not User.objects.filter(
         phone="09999999999",
     ).exists()
     assert not User.objects.exists()
@@ -770,7 +722,7 @@ def test_concurrent_address_creation_keeps_one_default(
         pytest.skip("Requires PostgreSQL row-level locks")
 
     user = User.objects.create_user(
-        username="concurrent_address_user",
+        phone="09900000001",
     )
     barrier = Barrier(2)
 
@@ -802,3 +754,14 @@ def test_concurrent_address_creation_keeps_one_default(
         user=user,
         is_default=True,
     ).count() == 1
+
+def test_initial_migration_defines_custom_user():
+    from django.db.migrations.loader import MigrationLoader
+
+    state = MigrationLoader(connection).project_state(
+        [("accounts", "0001_initial")],
+    )
+    historical_user = state.apps.get_model("accounts", "User")
+
+    assert historical_user._meta.get_field("phone").unique is True
+    assert historical_user._meta.get_field("phone_verified_at")
