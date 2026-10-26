@@ -1,0 +1,39 @@
+{
+  "method": "Built-in image_gen",
+  "use_case": "product-mockup",
+  "common_brief": "Square photoreal premium ecommerce studio photograph, pure white backdrop, gentle contact shadow, complete uncropped product, crisp material details, neutral softbox lighting, no logos, no labels, no promotional text, invented demo products.",
+  "subjects": [
+    [
+      "01-avan-orbit-x1",
+      "A premium fictional smartphone, sage green matte metal rear shell with two large vertically stacked circular camera lenses in a pill island, and a second view of the same phone showing its edge-to-edge dark display with soft emerald abstract aurora wallpaper. Two views of ONE product, coordinated pair, no branding."
+    ],
+    [
+      "02-avan-orbit-pro",
+      "A premium fictional flagship smartphone in titanium champagne, three small precision camera lenses arranged in a triangular square camera island, shown back and front as a coordinated pair. Front screen has a restrained violet and peach abstract gradient wallpaper, flat titanium sides. A distinct design from a green two-lens phone."
+    ],
+    [
+      "03-avan-airbook-14",
+      "A single premium fictional 14 inch ultrathin midnight navy aluminum laptop, open at 110 degrees, three-quarter perspective, sharp generous trackpad, realistic keyboard, thin screen bezel and a restrained blue wave abstract wallpaper. No readable keys or logos required."
+    ],
+    [
+      "04-avan-studio-h1",
+      "A single premium fictional over-ear wireless headphone in warm ivory cream, sculptural oval earcups, beautifully cushioned leatherette, subtle brushed gold hinges, softly padded headband, standing upright at three quarter angle. Elegant believable industrial design."
+    ],
+    [
+      "05-avan-pods-a2",
+      "A pair of premium fictional pearl white wireless in-ear earbuds with short stems resting naturally in an open oval white charging case, interior sculpted cavities, small soft green indicator light, macro detail. One open case and its matching pair only."
+    ],
+    [
+      "06-avan-pulse-s1",
+      "A single premium fictional smartwatch with brushed silver rounded rectangular case, deep ocean blue silicone sport strap with believable holes and buckle, three-quarter angle floating slightly above surface, screen shows a minimal analog clock with blue hour markers and small abstract activity arcs, no letters or numbers."
+    ],
+    [
+      "07-avan-sound-mini",
+      "A single premium fictional compact portable Bluetooth speaker, cylindrical rounded rectangular body in midnight teal woven acoustic fabric, subtle rubberized top controls with simple embossed icons, short matching woven carry loop, three quarter view, believable fine fabric texture."
+    ],
+    [
+      "08-avan-power-20",
+      "A single premium fictional 20000mAh portable power bank in graphite anodized metal, compact rounded rectangular shape, angled three quarter view showing two USB-C ports and one USB-A port on the top end, a small glossy inset charge indicator with four white dots. No printed specs or cables."
+    ]
+  ]
+}

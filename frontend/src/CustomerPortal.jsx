@@ -9,6 +9,19 @@ import {
   verifyOTP,
 } from "./customerAuth";
 
+function customerDestination() {
+  const next = new URLSearchParams(window.location.search).get("next");
+  if (!next) return "/";
+  try {
+    const url = new URL(next, window.location.origin);
+    const path = url.pathname.replace(/\/+$/, "") || "/";
+    if (url.origin === window.location.origin && (path === "/" || /^\/products(?:\/[1-9][0-9]*)?$/.test(path))) {
+      return path + url.search;
+    }
+  } catch { /* Ignore invalid destinations. */ }
+  return "/";
+}
+
 function normalizeDigits(value) {
   return value
     .replace(/[۰-۹]/g, (digit) =>
@@ -80,7 +93,7 @@ export default function CustomerPortal() {
         if (!active) return;
 
         if (!accountPage) {
-          window.location.replace("/account");
+          window.location.replace(customerDestination());
           return;
         }
 
@@ -191,7 +204,7 @@ export default function CustomerPortal() {
 
     try {
       await verifyOTP(phone, normalized);
-      window.location.replace("/account");
+      window.location.replace(customerDestination());
     } catch (err) {
       showError(err);
     } finally {

@@ -1,27 +1,25 @@
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
 
-import "./index.css";
-import CustomerPortal from "./CustomerPortal";
-import ManagementLogin from "./ManagementLogin";
-import ManagementWorkspace from "./ManagementWorkspace";
+import './index.css';
+import CustomerPortal from './CustomerPortal';
+import ManagementLogin from './ManagementLogin';
+import ManagementWorkspace from './ManagementWorkspace';
+import Storefront from './Storefront';
 
-const pathname =
-  window.location.pathname.replace(/\/+$/, "") || "/";
-
-const customerPage =
-  pathname === "/login" || pathname === "/account";
-
+const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
 let screen;
 
-if (customerPage) {
+if (pathname === '/login' || pathname === '/account') {
   screen = <CustomerPortal />;
-} else if (pathname === "/management/login") {
+} else if (pathname === '/management/login') {
   screen = <ManagementLogin />;
-} else {
+} else if (pathname === '/dashboard' || pathname.startsWith('/dashboard/')) {
   screen = <ManagementWorkspace />;
+} else {
+  screen = <Storefront />;
 }
 
-createRoot(document.getElementById("root")).render(
+createRoot(document.getElementById('root')).render(
   <StrictMode>{screen}</StrictMode>,
 );
