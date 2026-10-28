@@ -57,7 +57,9 @@ RESOURCES = {
         "columns": [
             ["id", "شناسه"],
             ["name", "نام"],
+            ["parent", "دستهٔ والد"],
             ["slug", "نامک"],
+            ["sort_order", "ترتیب نمایش"],
         ],
     },
     "brands": {
@@ -181,6 +183,16 @@ def summary_data(resource, obj):
             "user": obj.user.phone,
         }
 
+    if resource == "categories":
+        return {
+            **pick(
+                obj,
+                ["id", "name", "slug", "sort_order"],
+            ),
+            "parent_id": obj.parent_id,
+            "parent": obj.parent.name if obj.parent else "دستهٔ مستقل",
+        }
+
     fields = ["id", "name"]
 
     if resource != "groups":
@@ -246,6 +258,26 @@ def detail_data(resource, obj):
         ]
 
     elif resource == "categories":
+        data.update(
+            pick(
+                obj,
+                ["description", "sort_order", "parent_id"],
+            ),
+        )
+
+        related = list(obj.related_categories.all())
+
+        data["related_category_ids"] = [
+            category.pk
+            for category in related
+        ]
+        data["related_categories"] = [
+            {
+                "id": category.pk,
+                "name": category.name,
+            }
+            for category in related
+        ]
         data["allowed_attributes"] = [
             {
                 "id": relation.attribute_id,
@@ -354,7 +386,10 @@ def get_resource(request, resource):
         )
 
     elif resource == "categories":
-        queryset = queryset.prefetch_related(
+        queryset = queryset.select_related(
+            "parent",
+        ).prefetch_related(
+            "related_categories",
             "category_attributes__attribute",
         )
 

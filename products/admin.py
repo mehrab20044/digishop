@@ -18,6 +18,7 @@ from .models import (
     ProductImage,
     ProductVariant,
 )
+from .services.category_service import category_tree_write_lock
 from .services.image_service import prepare_product_image
 from .validators import (
     validate_product_image_content,
@@ -251,11 +252,115 @@ class ProductAttributeValueInline(admin.TabularInline):
     model = ProductAttributeValue
     extra = 1
 
+class CategoryAdminForm(forms.ModelForm):
+    class Meta:
+        model = Category
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if self.instance.pk:
+            self.fields["parent"].queryset = (
+                Category.objects.exclude(pk=self.instance.pk)
+            )
+            self.fields["related_categories"].queryset = (
+                Category.objects.exclude(pk=self.instance.pk)
+            )
+
+    def clean_related_categories(self):
+        categories = self.cleaned_data["related_categories"]
+
+        if (
+            self.instance.pk
+            and categories.filter(pk=self.instance.pk).exists()
+        ):
+            raise ValidationError(
+                "دسته نمی‌تواند با خودش ارتباط داشته باشد."
+            )
+
+        return categories
+
+
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ("name", "slug")
+    form = CategoryAdminForm
+
+    list_display = (
+        "name",
+        "parent",
+        "slug",
+        "sort_order",
+    )
+    list_select_related = ("parent",)
+    search_fields = ("name", "slug")
+    list_filter = ("parent",)
+    ordering = ("sort_order", "name", "id")
     prepopulated_fields = {"slug": ("name",)}
+    autocomplete_fields = ("parent",)
+    filter_horizontal = ("related_categories",)
     inlines = [CategoryAttributeInline]
+
+    fields = (
+        "name",
+        "slug",
+        "parent",
+        "description",
+        "sort_order",
+        "related_categories",
+    )
+
+    def changeform_view(
+        self,
+        request,
+        object_id=None,
+        form_url="",
+        extra_context=None,
+    ):
+        if request.method == "POST":
+            with category_tree_write_lock():
+                return super().changeform_view(
+                    request,
+                    object_id,
+                    form_url,
+                    extra_context,
+                )
+
+        return super().changeform_view(
+            request,
+            object_id,
+            form_url,
+            extra_context,
+        )
+
+    def delete_view(self, request, object_id, extra_context=None):
+        if request.method == "POST":
+            with category_tree_write_lock():
+                return super().delete_view(
+                    request,
+                    object_id,
+                    extra_context,
+                )
+
+        return super().delete_view(
+            request,
+            object_id,
+            extra_context,
+        )
+
+    def changelist_view(self, request, extra_context=None):
+        # Includes bulk deletion and any future POST actions.
+        if request.method == "POST":
+            with category_tree_write_lock():
+                return super().changelist_view(
+                    request,
+                    extra_context,
+                )
+
+        return super().changelist_view(
+            request,
+            extra_context,
+        )
 
 
 

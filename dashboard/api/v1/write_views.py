@@ -2,16 +2,17 @@ from django import forms
 from django.db import IntegrityError, transaction
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404
-from rest_framework.exceptions import (
-    PermissionDenied,
-    ValidationError,
-)
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
 from dashboard.api.v1.views import (
     OwnerAPIView,
     detail_data,
     get_resource,
+)
+from products.services.category_service import (
+    category_tree_write_lock,
+    save_category,
 )
 
 EDIT_FIELDS = {
@@ -26,7 +27,14 @@ EDIT_FIELDS = {
         "status",
         "is_active",
     ],
-    "categories": ["name", "slug"],
+    "categories": [
+        "name",
+        "slug",
+        "description",
+        "sort_order",
+        "parent_id",
+        "related_category_ids",
+    ],
     "brands": ["name", "slug"],
     "attributes": ["name", "slug"],
 }
@@ -51,10 +59,7 @@ def validate_payload(resource, payload):
 
     if unknown:
         raise ValidationError({
-            "detail": (
-                "فیلد غیرمجاز: "
-                + ", ".join(sorted(unknown))
-            ),
+            "detail": "فیلد غیرمجاز: " + ", ".join(sorted(unknown)),
         })
 
     if not payload:
@@ -63,9 +68,71 @@ def validate_payload(resource, payload):
     return fields
 
 
+def log_saved_record(request, model_admin, saved, *, created, fields):
+    if created:
+        model_admin.log_addition(
+            request,
+            saved,
+            "Created through owner dashboard.",
+        )
+    else:
+        model_admin.log_change(
+            request,
+            saved,
+            "Updated through owner dashboard: "
+            + ", ".join(fields),
+        )
+
+
+def save_category_record(request, pk=None):
+    # Acquire before reading the category or validating its new parent.
+    with category_tree_write_lock():
+        _, model_admin, queryset = get_resource(
+            request,
+            "categories",
+        )
+
+        if pk is None:
+            if not model_admin.has_add_permission(request):
+                raise PermissionDenied(
+                    "اجازهٔ افزودن دسته‌بندی ندارید."
+                )
+        else:
+            instance = get_object_or_404(
+                queryset.select_related(None).select_for_update(),
+                pk=pk,
+            )
+
+            if not model_admin.has_change_permission(
+                request,
+                instance,
+            ):
+                raise PermissionDenied(
+                    "اجازهٔ ویرایش این دسته‌بندی را ندارید."
+                )
+
+        saved = save_category(
+            category_id=pk,
+            data=dict(request.data),
+        )
+
+        log_saved_record(
+            request,
+            model_admin,
+            saved,
+            created=pk is None,
+            fields=sorted(request.data),
+        )
+
+        return detail_data("categories", saved)
+
+
 @transaction.atomic
 def save_record(request, resource, pk=None):
     fields = validate_payload(resource, request.data)
+
+    if resource == "categories":
+        return save_category_record(request, pk)
 
     config, model_admin, queryset = get_resource(
         request,
@@ -85,9 +152,7 @@ def save_record(request, resource, pk=None):
 
         instance = None
         data = dict(request.data)
-
     else:
-        # Remove select_related joins before taking the row lock.
         instance = get_object_or_404(
             queryset.select_related(None).select_for_update(),
             pk=pk,
@@ -111,7 +176,6 @@ def save_record(request, resource, pk=None):
         config["model"],
         fields=fields,
     )
-
     form = Form(data=data, instance=instance)
 
     if not form.is_valid():
@@ -123,7 +187,6 @@ def save_record(request, resource, pk=None):
     product = form.instance
 
     if resource == "products":
-        # Match the publication rules present in the current admin.
         if (
             product.status == product.Status.PUBLISHED
             and product.variants.filter(price=0).exists()
@@ -148,20 +211,13 @@ def save_record(request, resource, pk=None):
 
     saved = form.save()
 
-    # Keep an audit entry in Django Admin's history.
-    if pk is None:
-        model_admin.log_addition(
-            request,
-            saved,
-            "Created through owner dashboard.",
-        )
-    else:
-        model_admin.log_change(
-            request,
-            saved,
-            "Updated through owner dashboard: "
-            + ", ".join(form.changed_data),
-        )
+    log_saved_record(
+        request,
+        model_admin,
+        saved,
+        created=pk is None,
+        fields=form.changed_data,
+    )
 
     return detail_data(resource, saved)
 

@@ -1,3 +1,5 @@
+import re
+
 import django_filters
 from django.db import models
 from django.db.models import (
@@ -9,11 +11,26 @@ from django.db.models import (
     Subquery,
     When,
 )
+from rest_framework.exceptions import ValidationError
 
-from products.models import Product, ProductVariant
+from products.models import Category, Product, ProductVariant
+from products.services.category_query_service import (
+    MAX_SELECTED_CATEGORIES,
+    filter_category_branches,
+)
 
 
 class ProductFilter(django_filters.FilterSet):
+    category = django_filters.ModelChoiceFilter(
+        queryset=Category.objects.all(),
+        method="filter_category",
+    )
+
+    categories = django_filters.CharFilter(
+        method="filter_categories",
+        max_length=250,
+    )
+
     min_price = django_filters.NumberFilter(
         method="filter_min_price",
     )
@@ -23,10 +40,55 @@ class ProductFilter(django_filters.FilterSet):
     )
 
     in_stock = django_filters.BooleanFilter(
-        field_name="stock",
-        lookup_expr="gt",
         method="filter_in_stock",
     )
+
+    def filter_category(self, queryset, name, value):
+        return filter_category_branches(
+            queryset,
+            [value.pk],
+        )
+
+    def filter_categories(self, queryset, name, value):
+        parts = value.split(",")
+
+        if len(parts) > MAX_SELECTED_CATEGORIES:
+            raise ValidationError({
+                "categories": (
+                    f"انتخاب هم‌زمان حداکثر "
+                    f"{MAX_SELECTED_CATEGORIES} دسته مجاز است."
+                ),
+            })
+
+        category_ids = []
+
+        for part in parts:
+            token = part.strip()
+
+            if (
+                len(token) > 19
+                or re.fullmatch(r"[1-9][0-9]*", token) is None
+            ):
+                raise ValidationError({
+                    "categories": (
+                        "شناسه‌های مثبت دسته‌ها را با کامای انگلیسی "
+                        "جدا کنید؛ مانند 8,11."
+                    ),
+                })
+
+            category_id = int(token)
+
+            if category_id > 9223372036854775807:
+                raise ValidationError({
+                    "categories": "شناسهٔ دسته‌بندی معتبر نیست.",
+                })
+
+            category_ids.append(category_id)
+
+        return filter_category_branches(
+            queryset,
+            category_ids,
+        )
 
     def filter_in_stock(self, queryset, name, value):
         available_variants = ProductVariant.objects.filter(
@@ -35,7 +97,6 @@ class ProductFilter(django_filters.FilterSet):
             stock__gt=0,
             price__gt=0,
         )
-
         any_variants = ProductVariant.objects.filter(
             product_id=OuterRef("pk"),
         )
@@ -87,13 +148,21 @@ class ProductFilter(django_filters.FilterSet):
             _effective_price=Case(
                 When(
                     Exists(any_variants),
-                    then=Subquery(valid_variants.values("price")[:1]),
+                    then=Subquery(
+                        valid_variants.values("price")[:1],
+                    ),
                 ),
                 default=F("price"),
                 output_field=BigIntegerField(),
-            )
+            ),
         )
 
     class Meta:
         model = Product
-        fields = ["category", "min_price", "max_price", "in_stock"]
+        fields = [
+            "category",
+            "categories",
+            "min_price",
+            "max_price",
+            "in_stock",
+        ]

@@ -1,9 +1,12 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import permissions
+from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
+from rest_framework.response import Response
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from products.filters import ProductFilter
+from products.services.category_query_service import public_category_tree
 from products.services.product_service import ProductService
 
 from .serializers import CategorySerializer, ProductSerializer
@@ -15,6 +18,14 @@ class CategoryViewSet(ReadOnlyModelViewSet):
 
     def get_queryset(self):
         return ProductService.get_categories()
+
+    @action(
+        detail=False,
+        methods=["get"],
+        pagination_class=None,
+    )
+    def tree(self, request):
+        return Response(public_category_tree())
 
 
 

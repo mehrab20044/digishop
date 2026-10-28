@@ -1,3 +1,5 @@
+import CategoryRoute from "./storefront/CategoryRoute";
+import CategoryBrowser, { HomeCategoryStrip, flattenCategoryTree } from "./storefront/CategoryBrowser";
 
 import { CartProvider, CartBadge } from './cart/CartProvider';
 import AddToCart from './cart/AddToCart';
@@ -10,6 +12,7 @@ import CheckoutPage from "./orders/CheckoutPage";
 import OrdersPage from "./orders/OrdersPage";
 import OrderDetailPage from "./orders/OrderDetailPage";
 import FakePaymentPage from "./payments/FakePaymentPage";
+import CategoryMenu from "./storefront/CategoryMenu";
 
 function Icon({ name, size = 22, ...props }) {
   const paths = {
@@ -60,11 +63,11 @@ function Header({ search }) {
     <div className="sf-announcement">انتخاب دقیق‌تر، خرید آسوده‌تر <span>به دیجی‌شاپ خوش آمدید</span></div>
     <header className="sf-header">
       <div className="sf-container sf-header-main">
-        <a className="sf-brand" href="/" aria-label="دیجی‌شاپ، صفحه اصلی"><span className="sf-brand-symbol">D<span /></span><span>دیجی‌شاپ<small>DIGISHOP</small></span></a>
+        <a className="sf-brand" href="/" aria-label="دیجی‌شاپ، صفحهٔ اصلی"><span className="sf-brand-symbol">D<span /></span><span>دیجی‌شاپ<small>DIGISHOP</small></span></a>
         <form className="sf-search" action="/products" method="get" role="search"><Icon name="search" /><input name="search" aria-label="جست‌وجوی محصول" placeholder="دنبال چه محصولی می‌گردی؟" defaultValue={search} maxLength={150} /><button type="submit">جست‌وجو</button></form>
         <StoreCustomerLink /><CartBadge />
       </div>
-      <nav className="sf-container sf-nav" aria-label="منوی فروشگاه"><a href="/products"><Icon name="grid" size={18} />همهٔ محصولات</a><a href="/products?in_stock=true">کالاهای موجود</a><a href="/products?ordering=-created_at">جدیدترین‌ها</a><span>فروشگاه آنلاین کالای دیجیتال</span></nav>
+      <nav className="sf-container sf-nav sf-category-nav" aria-label="منوی فروشگاه"><CategoryMenu /><a href="/products">همهٔ محصولات</a><a href="/products?in_stock=true">کالاهای موجود</a><a href="/products?ordering=-created_at">جدیدترین‌ها</a><a href="/orders">سفارش‌های من</a></nav>
     </header>
   </>;
 }
@@ -77,9 +80,7 @@ function Hero() {
 }
 
 function CategoryStrip() {
-  const { data, error, retry } = useStore('categories/');
-  const rows = Array.isArray(data) ? data : data?.results || [];
-  return <section className="sf-category-section" aria-label="دسته‌بندی محصولات"><div className="sf-section-title"><div><span className="sf-overline">از اینجا شروع کن</span><h2>دسته‌بندی محصولات</h2></div><a href="/products">مشاهدهٔ همه<Icon name="arrow" size={16} /></a></div>{error ? <div className="sf-inline-error" role="alert">دسته‌بندی‌ها دریافت نشدند. <button onClick={retry}>تلاش مجدد</button></div> : !data ? <p role="status">در حال دریافت دسته‌بندی‌ها…</p> : <div className="sf-categories"><a className="sf-category sf-category-all" href="/products"><span><Icon name="grid" size={30} /></span><b>همهٔ محصولات</b></a>{rows.map((category, index) => <a className={`sf-category sf-category-${index % 4}`} key={category.id} href={catalogHref('', { category: category.id })}><span><Icon name="phone" size={30} /></span><b>{category.name}</b></a>)}</div>}</section>;
+  return <HomeCategoryStrip />;
 }
 
 function ProductCard({ product }) {
@@ -91,33 +92,61 @@ function Skeletons() {
   return <div className="sf-products" role="status" aria-label="در حال دریافت محصولات">{[1, 2, 3, 4].map(key => <div className="sf-skeleton" key={key}><span /><i /><i /></div>)}</div>;
 }
 
+function pageHref(search, page) {
+  if (!window.location.pathname.startsWith("/products/category/")) return catalogHref(search, { page });
+  const params = new URLSearchParams(search); params.delete("category"); params.set("page", String(page));
+  return window.location.pathname + `?${params}`;
+}
 function Catalog({ home, search }) {
   const params = new URLSearchParams(search);
   const page = pageNumber(params.get('page'));
-  const allowed = ['search', 'category', 'min_price', 'max_price', 'in_stock', 'ordering'];
-  const query = new URLSearchParams();
+  function submitFilters(event) {
+    event.preventDefault();
+    const values = new URLSearchParams(new FormData(event.currentTarget));
+    const id = values.get("category");
+    const selected = categoryRows.find(row => String(row.id) === id);
+    if (selected?.url) values.delete("category");
+    for (const [key, value] of [...values]) if (!value) values.delete(key);
+    window.location.assign((selected?.url || "/products") + (values.size ? `?${values}` : ""));
+  }
+const allowed = [
+  "search",
+  "category",
+  "categories",
+  "min_price",
+  "max_price",
+  "in_stock",
+  "ordering",
+];  const query = new URLSearchParams();
   for (const key of allowed) if (params.get(key)) query.set(key, params.get(key));
   query.set('page', String(page));
   const list = useStore(`products/?${query}`);
-  const categories = useStore('categories/');
-  const categoryRows = Array.isArray(categories.data) ? categories.data : categories.data?.results || [];
+  const categories = useStore("categories/tree/");
+  const categoryRows = flattenCategoryTree(categories.data || []);
   const rows = Array.isArray(list.data) ? list.data : list.data?.results || [];
   const count = list.data?.count ?? rows.length;
   const [filtersOpen, setFiltersOpen] = useState(false);
   const Heading = home ? 'h2' : 'h1';
   const currentCategory = categoryRows.find(category => String(category.id) === params.get('category'));
   return <section className="sf-catalog" id="products">
+    {!home && <CategoryBrowser search={search} />}
     <div className="sf-section-title"><div><span className="sf-overline">یک قدم نزدیک‌تر به انتخابت</span><Heading>{home ? 'تازه‌های دیجی‌شاپ' : currentCategory?.name || 'همهٔ محصولات'}</Heading></div>{home ? <a href="/products">مشاهدهٔ همه<Icon name="arrow" size={16} /></a> : <span className="sf-muted">{list.data ? `${number(count)} محصول` : 'در حال دریافت…'}</span>}</div>
-    {!home && <><button className="sf-filter-toggle" aria-expanded={filtersOpen} aria-controls="sf-filters" onClick={() => setFiltersOpen(value => !value)}>فیلتر و مرتب‌سازی</button><form id="sf-filters" className={`sf-filters ${filtersOpen ? 'sf-filters-open' : ''}`} action="/products" method="get">
+    {!home && <><button className="sf-filter-toggle" aria-expanded={filtersOpen} aria-controls="sf-filters" onClick={() => setFiltersOpen(value => !value)}>فیلتر و مرتب‌سازی</button><form id="sf-filters" className={`sf-filters ${filtersOpen ? 'sf-filters-open' : ''}`} onSubmit={submitFilters} action="/products" method="get">
       <label>جست‌وجو<input type="search" name="search" maxLength={150} defaultValue={params.get('search') || ''} placeholder="نام محصول" /></label>
       <label>دسته‌بندی<select key={categoryRows.length} name="category" defaultValue={params.get('category') || ''}><option value="">همهٔ دسته‌ها</option>{categoryRows.map(category => <option value={category.id} key={category.id}>{category.name}</option>)}</select></label>
       <label>از قیمت<input type="number" min="0" step="1" name="min_price" defaultValue={params.get('min_price') || ''} placeholder="حداقل" /></label>
       <label>تا قیمت<input type="number" min="0" step="1" name="max_price" defaultValue={params.get('max_price') || ''} placeholder="حداکثر" /></label>
       <label>مرتب‌سازی<select name="ordering" defaultValue={params.get('ordering') || '-created_at'}><option value="-created_at">جدیدترین</option><option value="effective_price">ارزان‌ترین</option><option value="-effective_price">گران‌ترین</option><option value="created_at">قدیمی‌ترین</option></select></label>
       <label className="sf-checkbox"><input type="checkbox" name="in_stock" value="true" defaultChecked={params.get('in_stock') === 'true'} />فقط موجودها</label><button className="sf-button" type="submit">اعمال فیلتر</button><a className="sf-reset" href="/products">حذف فیلترها</a>
-    </form>{categories.error && <div className="sf-inline-error" role="alert">فهرست دسته‌بندی‌ها دریافت نشد. <button onClick={categories.retry}>تلاش مجدد</button></div>}</>}
+    {params.get("categories") && (
+  <input
+    type="hidden"
+    name="categories"
+    value={params.get("categories")}
+  />
+)}</form>{categories.error && <div className="sf-inline-error" role="alert">فهرست دسته‌بندی‌ها دریافت نشد. <button onClick={categories.retry}>تلاش مجدد</button></div>}</>}
     {params.get('search') && <p className="sf-search-result">نتایج جست‌وجوی «{params.get('search')}»</p>}
-    {list.error ? <Failure error={list.error} retry={list.retry} /> : !list.data ? <Skeletons /> : rows.length === 0 ? <div className="sf-message"><Icon name="search" size={36} /><h2>محصولی پیدا نشد</h2><p>جست‌وجو یا فیلترها را تغییر بده.</p><a className="sf-button" href="/products">دیدن همهٔ محصولات</a></div> : <><div className="sf-products">{rows.map(product => <ProductCard key={product.id} product={product} />)}</div>{!home && <nav className="sf-pagination" aria-label="صفحه‌بندی محصولات">{list.data.previous ? <a href={catalogHref(search, { page: page - 1 })}>صفحهٔ قبل</a> : <span aria-disabled="true">صفحهٔ قبل</span>}<b>صفحهٔ {number(page)}</b>{list.data.next ? <a href={catalogHref(search, { page: page + 1 })}>صفحهٔ بعد</a> : <span aria-disabled="true">صفحهٔ بعد</span>}</nav>}</>}
+    {list.error ? <Failure error={list.error} retry={list.retry} /> : !list.data ? <Skeletons /> : rows.length === 0 ? <div className="sf-message"><Icon name="search" size={36} /><h2>محصولی پیدا نشد</h2><p>جست‌وجو یا فیلترها را تغییر بده.</p><a className="sf-button" href="/products">دیدن همهٔ محصولات</a></div> : <><div className="sf-products">{rows.map(product => <ProductCard key={product.id} product={product} />)}</div>{!home && <nav className="sf-pagination" aria-label="صفحه‌بندی محصولات">{list.data.previous ? <a href={pageHref(search, page - 1)}>صفحهٔ قبل</a> : <span aria-disabled="true">صفحهٔ قبل</span>}<b>صفحهٔ {number(page)}</b>{list.data.next ? <a href={pageHref(search, page + 1)}>صفحهٔ بعد</a> : <span aria-disabled="true">صفحهٔ بعد</span>}</nav>}</>}
   </section>;
 }
 
@@ -142,7 +171,7 @@ function ProductContent({ product }) {
     <section className="sf-detail"><div className="sf-gallery"><div className="sf-main-image"><ProductImage key={gallery[imageIndex]?.image} src={gallery[imageIndex]?.image} name={product.name} eager /></div>{gallery.length > 1 && <div className="sf-thumbnails" aria-label="تصاویر محصول">{gallery.map((image, index) => <button className={index === imageIndex ? 'is-active' : ''} aria-label={`تصویر ${number(index + 1)}`} aria-pressed={index === imageIndex} onClick={() => setImageIndex(index)} key={image.id}><ProductImage src={image.image} name={`${product.name}، تصویر ${number(index + 1)}`} /></button>)}</div>}{product.gallery_description && <p className="sf-gallery-caption">{product.gallery_description}</p>}</div>
       <div className="sf-detail-copy"><span className="sf-overline">{product.brand?.name || product.category?.name}</span><h1>{product.name}</h1><p className="sf-detail-intro">{product.short_description}</p><span className={`sf-availability ${available ? '' : 'sf-availability-off'}`}><span />{available ? 'موجود در فروشگاه' : 'این انتخاب فعلاً ناموجود است'}</span>
         {variants.length > 0 && <fieldset className="sf-variants"><legend>رنگ و حافظه را انتخاب کن</legend><div>{variants.map(variant => <button key={variant.id} type="button" className={variant.id === selectedId ? 'is-active' : ''} aria-pressed={variant.id === selectedId} onClick={() => setSelectedId(variant.id)}><b>{[variant.color, variant.storage].filter(Boolean).join(' / ')}</b><span>{variant.stock > 0 && variant.price > 0 ? money(variant.price) : 'ناموجود'}</span></button>)}</div></fieldset>}
-        <div className="sf-purchase"><span>قیمت {selected ? 'تنوع انتخاب‌شده' : 'محصول'}</span><strong>{price !== null && price !== undefined ? money(price) : 'ناموجود'}</strong>{selected && <small>کد کالا: <bdi>{selected.sku}</bdi></small>}<AddToCart key={`${product.id}:${selected?.id || 0}`} product={product} variant={selected} available={available} /></div>
+        <div className="sf-purchase"><span>قیمت {selected ? 'تنوع انتخاب‌شده' : 'محصول'}</span><strong>{available ? money(price) : "ناموجود"}</strong>{selected && <small>کد کالا: <bdi>{selected.sku}</bdi></small>}<AddToCart key={`${product.id}:${selected?.id || 0}`} product={product} variant={selected} available={available} /></div>
       </div>
     </section>
     <div className="sf-detail-sections"><section><h2>دربارهٔ محصول</h2><p>{product.long_description || product.description || 'توضیحات تکمیلی ثبت نشده است.'}</p></section><section><h2>مشخصات فنی</h2><dl>{product.brand && <div><dt>برند</dt><dd>{product.brand.name}</dd></div>}<div><dt>دسته‌بندی</dt><dd>{product.category?.name || '—'}</dd></div>{(product.attribute_values || []).map(item => <div key={item.id}><dt>{item.attribute}</dt><dd>{item.value}</dd></div>)}</dl></section></div>
@@ -238,6 +267,8 @@ export default function Storefront() {
     content = <CartPage />;
   } else if (detail) {
     content = <ProductDetail id={detail[1]} />;
+  } else if (pathname.startsWith("/products/category/")) {
+    content = <CategoryRoute renderCatalog={categorySearch => <Catalog home={false} search={categorySearch} />} />;
   } else if (found) {
     content = <Catalog home={home} search={search} />;
   } else {

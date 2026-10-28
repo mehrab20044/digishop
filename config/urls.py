@@ -24,11 +24,21 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
+from products.category_url_views import (
+    category_page,
+    category_resolve,
+    category_sitemap,
+)
+
 admin.site.site_header = "مدیریت دیجی‌شاپ"
 admin.site.site_title = "پنل مدیریت دیجی‌شاپ"
 admin.site.index_title = "مدیریت فروشگاه"
 
+
 urlpatterns = [
+    path("products/category/<path:path>", category_page, name="category-page"),
+    path("products/api/v1/category-resolve/", category_resolve, name="category-resolve"),
+    path("category-sitemap.xml", category_sitemap, name="category-sitemap"),
     path("admin/", admin.site.urls),
     path("products/", include("products.urls")),
     path(

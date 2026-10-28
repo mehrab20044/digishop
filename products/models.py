@@ -9,21 +9,121 @@ from .validators import (
 
 
 class Category(models.Model):
-    name = models.CharField("نام دسته‌بندی", max_length=100, unique=True)
+    name = models.CharField(
+        "نام دسته‌بندی",
+        max_length=100
+    )
     slug = models.SlugField(
-        "نامک",
-        max_length=120,
-        unique=True,
-        allow_unicode=True,
+        "نامک آدرس", max_length=120, unique=True, allow_unicode=True,
+        blank=True,
+    )
+
+    def clean_fields(self, exclude=None):
+        from products.services.category_url_service import prepare_slug
+        prepare_slug(self)
+        super().clean_fields(exclude=exclude)
+
+    def save(self, *args, **kwargs):
+        from products.services.category_url_service import save_with_urls
+        return save_with_urls(self, super().save, args, kwargs)
+
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        related_name="children",
+        null=True,
+        blank=True,
+        verbose_name="دستهٔ والد",
+    )
+
+    related_categories = models.ManyToManyField(
+        "self",
+        symmetrical=True,
+        blank=True,
+        verbose_name="دسته‌های مرتبط",
+    )
+
+    description = models.TextField(
+        "توضیح دسته‌بندی",
+        blank=True,
+    )
+    sort_order = models.PositiveIntegerField(
+        "ترتیب نمایش",
+        default=0,
     )
 
     class Meta:
         verbose_name = "دسته‌بندی"
         verbose_name_plural = "دسته‌بندی‌ها"
+        ordering = ["sort_order", "name", "id"]
+        indexes = [
+            models.Index(
+                fields=["parent", "sort_order"],
+                name="products_cat_parent_sort_idx",
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["parent", "name"],
+                name="products_cat_unique_sibling",
+            ),
+            models.UniqueConstraint(
+                fields=["name"],
+                condition=models.Q(parent__isnull=True),
+                name="products_cat_unique_root",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(parent__isnull=True)
+                    | ~models.Q(parent=models.F("pk"))
+                ),
+                name="products_category_not_own_parent",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+
+        if not self.name or not self.name.strip():
+            raise ValidationError({
+                "name": "نام دسته‌بندی الزامی است.",
+            })
+
+        if self.parent_id is None:
+            return
+
+        visited = set()
+
+        if self.pk is not None:
+            visited.add(self.pk)
+
+        current_id = self.parent_id
+
+        while current_id is not None:
+            if current_id in visited:
+                raise ValidationError({
+                    "parent": (
+                        "این انتخاب در دسته‌بندی‌ها چرخه ایجاد می‌کند."
+                    ),
+                })
+
+            visited.add(current_id)
+
+            parent = (
+                Category.objects.filter(pk=current_id)
+                .values("parent_id")
+                .first()
+            )
+
+            if parent is None:
+                raise ValidationError({
+                    "parent": "دستهٔ والد وجود ندارد.",
+                })
+
+            current_id = parent["parent_id"]
 
     def __str__(self):
         return self.name
-
 
 
 
@@ -143,7 +243,14 @@ class Product(models.Model):
         Category,
         on_delete=models.PROTECT,
         related_name="products",
-        verbose_name="دسته‌بندی",
+        verbose_name="دسته‌بندی اصلی",
+    )
+
+    categories = models.ManyToManyField(
+        Category,
+        related_name="listed_products",
+        blank=True,
+        verbose_name="دسته‌بندی‌های محصول",
     )
 
     name = models.CharField("نام محصول", max_length=200)
@@ -318,3 +425,15 @@ class ProductImage(models.Model):
         ]
 
 
+class CategoryURL(models.Model):
+    path = models.CharField(max_length=2048)
+    digest = models.CharField(max_length=64, unique=True)
+
+    def save(self, *args, **kwargs):
+        import hashlib
+        self.digest = hashlib.sha256(self.path.encode("utf-8")).hexdigest()
+        return super().save(*args, **kwargs)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="url_history")
+
+    class Meta:
+        verbose_name = "سابقهٔ آدرس دسته"

@@ -1,3 +1,4 @@
+import CategoryManager from "./categories/CategoryManager";
 import { useEffect, useRef, useState } from "react";
 
 import { managementFetch } from "./managementAuth";
@@ -8,6 +9,7 @@ import ProductGallery from "./ProductGallery";
 import ProductPublication from "./ProductPublication";
 import SEOManager from "./SEOManager";
 import StaffManager from "./StaffManager";
+import CategoryDetails from "./CategoryDetails";
 
 const BASE = "/api/v1/owner/";
 
@@ -468,7 +470,13 @@ function Unavailable({ navigate, message }) {
 
 /* Resource list */
 
-function ResourceList({
+function ResourceList(props) {
+  return props.resource.key === "categories"
+    ? <CategoryManager {...props} />
+    : <GenericResourceList {...props} />;
+}
+
+function GenericResourceList({
   resource,
   revision,
   filters,
@@ -810,9 +818,11 @@ function ResourceRecord({
               <h2>{recordName}</h2>
             </div>
 
-            <span className="counter">
-              شناسه: {display(detail.data.id)}
-            </span>
+{resource.key !== "categories" && (
+  <span className="counter">
+    شناسه: {display(detail.data.id)}
+  </span>
+)}
           </div>
 
           {isProduct && canEdit && (
@@ -827,10 +837,17 @@ function ResourceRecord({
             <ProductImageGrid images={detail.data.images ?? []} />
           )}
 
-          <Record
-            data={detail.data}
-            exclude={isProduct ? ["images"] : []}
-          />
+{resource.key === "categories" ? (
+  <CategoryDetails
+    data={detail.data}
+    navigate={navigate}
+  />
+) : (
+  <Record
+    data={detail.data}
+    exclude={isProduct ? ["images"] : []}
+  />
+)}
         </section>
       )}
     </>
