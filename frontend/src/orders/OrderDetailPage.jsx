@@ -4,6 +4,7 @@ import { hasSession } from "../customerAuth";
 import { money, number } from "../storefront/store-api";
 import { cancelOrder, loadOrder } from "./order-api";
 import "./orders.css";
+import PayOrderButton from "../payments/PayOrderButton";
 
 function formatDate(value) {
   if (!value) return "—";
@@ -347,9 +348,7 @@ export default function OrderDetailPage({ orderId }) {
                   <p className="sf-order-deadline">
                     مهلت پرداخت: {formatDate(order.expires_at)}
                   </p>
-                  <p className="sf-order-help">
-                    پرداخت آنلاین هنوز فعال نشده است.
-                  </p>
+                    <PayOrderButton order={order} />
                 </>
               )}
 

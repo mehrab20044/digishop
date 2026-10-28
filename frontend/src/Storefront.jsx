@@ -9,7 +9,7 @@ import StoreCustomerLink from "./StoreCustomerLink";
 import CheckoutPage from "./orders/CheckoutPage";
 import OrdersPage from "./orders/OrdersPage";
 import OrderDetailPage from "./orders/OrderDetailPage";
-
+import FakePaymentPage from "./payments/FakePaymentPage";
 
 function Icon({ name, size = 22, ...props }) {
   const paths = {
@@ -167,6 +167,10 @@ export default function Storefront() {
     /^\/orders\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i,
   );
 
+  const fakePayment = pathname.match(
+    /^\/payments\/fake\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i,
+  );
+
   const detail = pathname.match(
     /^\/products\/([1-9][0-9]*)$/,
   );
@@ -179,33 +183,47 @@ export default function Storefront() {
   useEffect(() => {
     document.documentElement.lang = "fa";
 
-    if (pathname === "/orders") {
-      document.title = "سفارش‌های من | دیجی‌شاپ";
+    let title = "صفحه پیدا نشد";
+
+    if (
+      /^\/payments\/fake\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        pathname,
+      )
+    ) {
+      title = "پرداخت آزمایشی";
+    } else if (pathname === "/orders") {
+      title = "سفارش‌های من";
     } else if (
       /^\/orders\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
         pathname,
       )
     ) {
-      document.title = "جزئیات سفارش | دیجی‌شاپ";
+      title = "جزئیات سفارش";
     } else if (pathname === "/checkout") {
-      document.title = "تأیید سفارش | دیجی‌شاپ";
+      title = "تأیید سفارش";
     } else if (pathname === "/cart") {
-      document.title = "سبد خرید | دیجی‌شاپ";
+      title = "سبد خرید";
     } else if (pathname === "/") {
-      document.title =
-        "دیجی‌شاپ | انتخاب هوشمند کالای دیجیتال";
+      title = "انتخاب هوشمند کالای دیجیتال";
     } else if (/^\/products\/[1-9][0-9]*$/.test(pathname)) {
-      document.title = "جزئیات محصول | دیجی‌شاپ";
+      title = "جزئیات محصول";
     } else if (pathname === "/products") {
-      document.title = "محصولات | دیجی‌شاپ";
-    } else {
-      document.title = "صفحه پیدا نشد | دیجی‌شاپ";
+      title = "محصولات";
     }
+
+    document.title = `${title} | دیجی‌شاپ`;
   }, [pathname]);
 
   let content;
 
-  if (isOrders) {
+  if (fakePayment) {
+    content = (
+      <FakePaymentPage
+        key={fakePayment[1]}
+        paymentId={fakePayment[1]}
+      />
+    );
+  } else if (isOrders) {
     content = <OrdersPage />;
   } else if (orderDetail) {
     content = (
@@ -266,6 +284,7 @@ export default function Storefront() {
                   یک‌جا بررسی کن.
                 </p>
               </div>
+
               <a href="/products">
                 شروع جست‌وجو
                 <Icon name="arrow" />

@@ -13,6 +13,7 @@ export default defineConfig({
       [
         "/api/v1/cart",
         "/api/v1/orders",
+        "/api/v1/payments",
         "/products/api/v1",
         "/api/v1/owner",
         "/api/v1/auth",

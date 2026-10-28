@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "cart",
     "orders",
     "seo",
+    "payments.apps.PaymentsConfig",
 ]
 
 MIDDLEWARE = [
@@ -221,3 +222,9 @@ SMSIR_TEMPLATE_ID = os.environ.get(
 
 
 AUTH_USER_MODEL = "accounts.User"
+
+PAYMENTS_FAKE_ENABLED = (
+    DEBUG
+    and os.environ.get("PAYMENTS_FAKE_ENABLED", "false").strip().lower()
+    == "true"
+)
