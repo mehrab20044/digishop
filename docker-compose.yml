@@ -27,6 +27,31 @@ services:
       web:
         condition: service_started
 
+  order-expiry:
+    build: .
+    restart: unless-stopped
+    init: true
+    command:
+      - /bin/sh
+      - -c
+      - |
+        while true; do
+          python manage.py expire_orders
+          result=$$?
+          if [ "$$result" -ne 0 ]; then
+            echo "Order expiry failed with exit code $$result; retrying in 60 seconds." >&2
+          fi
+          sleep 60 &
+          wait $$!
+        done
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+
   db:
     image: postgres:17
     restart: unless-stopped

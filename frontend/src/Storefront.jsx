@@ -6,6 +6,10 @@ import { useEffect, useState } from 'react';
 import { catalogHref, cover, getStore, money, number, pageNumber, safeImage } from './storefront/store-api';
 import './storefront/storefront.css';
 import StoreCustomerLink from "./StoreCustomerLink";
+import CheckoutPage from "./orders/CheckoutPage";
+import OrdersPage from "./orders/OrdersPage";
+import OrderDetailPage from "./orders/OrderDetailPage";
+
 
 function Icon({ name, size = 22, ...props }) {
   const paths = {
@@ -150,15 +154,128 @@ function Footer() {
 }
 
 export default function Storefront() {
-  const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
+  const pathname =
+    window.location.pathname.replace(/\/+$/, "") || "/";
   const search = window.location.search;
-  const home = pathname === '/';
-  const isCart = pathname === '/cart';
-  const detail = pathname.match(/^\/products\/([1-9][0-9]*)$/);
-  const found = home || pathname === '/products' || Boolean(detail);
+
+  const home = pathname === "/";
+  const isCart = pathname === "/cart";
+  const isCheckout = pathname === "/checkout";
+  const isOrders = pathname === "/orders";
+
+  const orderDetail = pathname.match(
+    /^\/orders\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i,
+  );
+
+  const detail = pathname.match(
+    /^\/products\/([1-9][0-9]*)$/,
+  );
+
+  const found =
+    home ||
+    pathname === "/products" ||
+    Boolean(detail);
+
   useEffect(() => {
-    document.documentElement.lang = 'fa';
-    document.title = isCart ? 'سبد خرید | دیجی‌شاپ' : home ? 'دیجی‌شاپ | انتخاب هوشمند کالای دیجیتال' : detail ? 'جزئیات محصول | دیجی‌شاپ' : 'محصولات | دیجی‌شاپ';
-  }, [home, pathname, isCart]);
-  return <CartProvider><div className="sf-root" dir="rtl" lang="fa"><a className="sf-skip" href="#sf-main">رفتن به محتوای اصلی</a><Header search={new URLSearchParams(search).get('search') || ''} /><main id="sf-main" className="sf-container">{home && <><Hero /><CategoryStrip /></>}{isCart ? <CartPage /> : detail ? <ProductDetail id={detail[1]} /> : found ? <Catalog home={home} search={search} /> : <div className="sf-message"><h1>صفحه پیدا نشد</h1><a className="sf-button" href="/">بازگشت به فروشگاه</a></div>}{home && <div className="sf-bottom-banner"><div><span className="sf-overline">انتخاب خوب، از شناخت شروع می‌شود</span><h2>قبل از انتخاب، جزئیات را ببین.</h2><p>مشخصات فنی، تصاویر و تنوع‌های هر محصول را یک‌جا بررسی کن.</p></div><a href="/products">شروع جست‌وجو<Icon name="arrow" /></a></div>}</main><Footer /></div></CartProvider>;
+    document.documentElement.lang = "fa";
+
+    if (pathname === "/orders") {
+      document.title = "سفارش‌های من | دیجی‌شاپ";
+    } else if (
+      /^\/orders\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        pathname,
+      )
+    ) {
+      document.title = "جزئیات سفارش | دیجی‌شاپ";
+    } else if (pathname === "/checkout") {
+      document.title = "تأیید سفارش | دیجی‌شاپ";
+    } else if (pathname === "/cart") {
+      document.title = "سبد خرید | دیجی‌شاپ";
+    } else if (pathname === "/") {
+      document.title =
+        "دیجی‌شاپ | انتخاب هوشمند کالای دیجیتال";
+    } else if (/^\/products\/[1-9][0-9]*$/.test(pathname)) {
+      document.title = "جزئیات محصول | دیجی‌شاپ";
+    } else if (pathname === "/products") {
+      document.title = "محصولات | دیجی‌شاپ";
+    } else {
+      document.title = "صفحه پیدا نشد | دیجی‌شاپ";
+    }
+  }, [pathname]);
+
+  let content;
+
+  if (isOrders) {
+    content = <OrdersPage />;
+  } else if (orderDetail) {
+    content = (
+      <OrderDetailPage
+        key={orderDetail[1]}
+        orderId={orderDetail[1]}
+      />
+    );
+  } else if (isCheckout) {
+    content = <CheckoutPage />;
+  } else if (isCart) {
+    content = <CartPage />;
+  } else if (detail) {
+    content = <ProductDetail id={detail[1]} />;
+  } else if (found) {
+    content = <Catalog home={home} search={search} />;
+  } else {
+    content = (
+      <div className="sf-message">
+        <h1>صفحه پیدا نشد</h1>
+        <a className="sf-button" href="/">
+          بازگشت به فروشگاه
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <CartProvider>
+      <div className="sf-root" dir="rtl" lang="fa">
+        <a className="sf-skip" href="#sf-main">
+          رفتن به محتوای اصلی
+        </a>
+
+        <Header
+          search={new URLSearchParams(search).get("search") || ""}
+        />
+
+        <main id="sf-main" className="sf-container">
+          {home && (
+            <>
+              <Hero />
+              <CategoryStrip />
+            </>
+          )}
+
+          {content}
+
+          {home && (
+            <div className="sf-bottom-banner">
+              <div>
+                <span className="sf-overline">
+                  انتخاب خوب، از شناخت شروع می‌شود
+                </span>
+                <h2>قبل از انتخاب، جزئیات را ببین.</h2>
+                <p>
+                  مشخصات فنی، تصاویر و تنوع‌های هر محصول را
+                  یک‌جا بررسی کن.
+                </p>
+              </div>
+              <a href="/products">
+                شروع جست‌وجو
+                <Icon name="arrow" />
+              </a>
+            </div>
+          )}
+        </main>
+
+        <Footer />
+      </div>
+    </CartProvider>
+  );
 }

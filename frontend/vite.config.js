@@ -12,6 +12,7 @@ export default defineConfig({
     proxy: Object.fromEntries(
       [
         "/api/v1/cart",
+        "/api/v1/orders",
         "/products/api/v1",
         "/api/v1/owner",
         "/api/v1/auth",
