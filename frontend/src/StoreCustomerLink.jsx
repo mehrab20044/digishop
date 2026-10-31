@@ -26,11 +26,7 @@ function Avatar({ image }) {
   return (
     <span className="sf-customer-avatar">
       {image && !failed ? (
-        <img
-          src={image}
-          alt=""
-          onError={() => setFailed(true)}
-        />
+        <img src={image} alt="" onError={() => setFailed(true)} />
       ) : (
         <UserIcon />
       )}
@@ -48,10 +44,7 @@ export default function StoreCustomerLink() {
     let active = true;
 
     function onExpired(event) {
-      if (
-        event.detail?.storageKey !==
-        "digishop.customer.session"
-      ) {
+      if (event.detail?.storageKey !== "digishop.customer.session") {
         return;
       }
 
@@ -59,6 +52,11 @@ export default function StoreCustomerLink() {
       setState({ status: "guest", user: null });
     }
 
+    function onProfile(event) {
+      if (hasSession() && event.detail?.id)
+        setState({ status: "ready", user: event.detail });
+    }
+    window.addEventListener("customer-profile-updated", onProfile);
     window.addEventListener("auth-expired", onExpired);
 
     if (hasSession()) {
@@ -80,19 +78,14 @@ export default function StoreCustomerLink() {
 
     return () => {
       active = false;
-      window.removeEventListener(
-        "auth-expired",
-        onExpired,
-      );
+      window.removeEventListener("customer-profile-updated", onProfile);
+      window.removeEventListener("auth-expired", onExpired);
     };
   }, []);
 
   if (state.status === "loading") {
     return (
-      <span
-        className="sf-customer-loading"
-        role="status"
-      >
+      <span className="sf-customer-loading" role="status">
         در حال بررسی حساب…
       </span>
     );
@@ -119,17 +112,11 @@ export default function StoreCustomerLink() {
     <a
       className="sf-account sf-customer"
       href="/account"
-      aria-label={
-        state.user
-          ? `حساب ${name}`
-          : "بازکردن حساب من"
-      }
+      aria-label={state.user ? `حساب ${name}` : "بازکردن حساب من"}
     >
       <Avatar key={image || "default"} image={image} />
 
-      <span className="sf-customer-name">
-        {state.user ? name : "حساب من"}
-      </span>
+      <span className="sf-customer-name">{state.user ? name : "حساب من"}</span>
     </a>
   );
 }

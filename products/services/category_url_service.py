@@ -78,6 +78,10 @@ def save_with_urls(instance, parent_save, args, kwargs):
         instance.clean()
         remember(current_paths())
         result = parent_save(*args, **kwargs)
+        from products.models import Product
+        from products.services.attribute_service import validate_product_specs
+        for product in Product.objects.select_for_update().order_by("pk"):
+            validate_product_specs(product, require_all=product.status == Product.Status.PUBLISHED)
         remember(current_paths())
         return result
 

@@ -1,3 +1,5 @@
+import DashboardSelect from "./components/DashboardSelect";
+import RichTextEditor from "./richtext/RichTextEditor";
 import { managementFetch } from "./managementAuth";
 import { useEffect, useRef, useState } from "react";
 
@@ -11,8 +13,8 @@ const fieldLabels = {
   price: "قیمت",
   stock: "موجودی",
   short_description: "توضیح کوتاه",
-  long_description: "توضیحات کامل",
-  gallery_description: "توضیحات گالری",
+  long_description_html: "توضیحات کامل",
+  gallery_description_html: "توضیحات گالری",
   images: "تصاویر",
   detail: "خطا",
   __all__: "اطلاعات محصول",
@@ -26,8 +28,8 @@ const productFields = [
   "price",
   "stock",
   "short_description",
-  "long_description",
-  "gallery_description",
+  "long_description_html",
+  "gallery_description_html",
 ];
 
 async function readResponse(response) {
@@ -61,15 +63,12 @@ async function loadAll(resource, signal) {
   let page = 1;
 
   while (true) {
-    const response = await managementFetch(
-      `${BASE}${resource}/?page=${page}`,
-      {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
-        cache: "no-store",
-        signal,
-      },
-    );
+    const response = await managementFetch(`${BASE}${resource}/?page=${page}`, {
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+      signal,
+    });
 
     const data = await readResponse(response);
     records.push(...data.results);
@@ -170,11 +169,7 @@ export default function ProductCreate({ onClose, onSaved }) {
       return;
     }
 
-    if (
-      files.some(
-        (file) => !/\.(jpe?g|png|webp)$/i.test(file.name),
-      )
-    ) {
+    if (files.some((file) => !/\.(jpe?g|png|webp)$/i.test(file.name))) {
       setError("فقط JPG، JPEG، PNG و WebP انتخاب کن.");
       return;
     }
@@ -196,10 +191,7 @@ export default function ProductCreate({ onClose, onSaved }) {
     // Read the form before disabling its fields.
     const values = new FormData(event.currentTarget);
     const payload = Object.fromEntries(
-      productFields.map((name) => [
-        name,
-        values.get(name) ?? "",
-      ]),
+      productFields.map((name) => [name, values.get(name) ?? ""]),
     );
 
     payload.brand = payload.brand || null;
@@ -242,9 +234,7 @@ export default function ProductCreate({ onClose, onSaved }) {
         );
 
         if (!Number.isInteger(product.id) || product.id < 1) {
-          const err = new Error(
-            "شناسهٔ محصول در پاسخ سرور موجود نیست.",
-          );
+          const err = new Error("شناسهٔ محصول در پاسخ سرور موجود نیست.");
           err.uncertain = true;
           throw err;
         }
@@ -265,38 +255,27 @@ export default function ProductCreate({ onClose, onSaved }) {
         });
 
         await readResponse(
-          await managementFetch(
-            `${BASE}products/${product.id}/gallery/`,
-            {
-              method: "POST",
-              credentials: "same-origin",
-              headers: {
-                Accept: "application/json",
-                "X-CSRFToken": csrf.csrfToken,
-              },
-              body,
+          await managementFetch(`${BASE}products/${product.id}/gallery/`, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              Accept: "application/json",
+              "X-CSRFToken": csrf.csrfToken,
             },
-          ),
+            body,
+          }),
         );
       }
 
       succeeded = true;
     } catch (err) {
-      const ambiguous =
-        !err.status ||
-        err.status >= 500 ||
-        err.uncertain;
+      const ambiguous = !err.status || err.status >= 500 || err.uncertain;
 
-      if (
-        ambiguous &&
-        (stage === "create" || stage === "upload")
-      ) {
+      if (ambiguous && (stage === "create" || stage === "upload")) {
         setUncertain(stage);
       }
 
-      const explanation = err.details
-        ? errorText(err.details)
-        : err.message;
+      const explanation = err.details ? errorText(err.details) : err.message;
 
       setError(
         createdRef.current
@@ -339,9 +318,7 @@ export default function ProductCreate({ onClose, onSaved }) {
       </div>
 
       {!choices && !loadError && (
-        <p role="status">
-          در حال دریافت دسته‌بندی‌ها و برندها…
-        </p>
+        <p role="status">در حال دریافت دسته‌بندی‌ها و برندها…</p>
       )}
 
       {loadError && (
@@ -368,9 +345,8 @@ export default function ProductCreate({ onClose, onSaved }) {
 
       {createdProduct && (
         <div className="notice" role="status">
-          محصول شمارهٔ{" "}
-          {createdProduct.id.toLocaleString("fa-IR")}
-          {" "}ثبت شده؛ دوباره ساخته نمی‌شود.
+          محصول شمارهٔ {createdProduct.id.toLocaleString("fa-IR")} ثبت شده؛
+          دوباره ساخته نمی‌شود.
         </div>
       )}
 
@@ -385,8 +361,8 @@ export default function ProductCreate({ onClose, onSaved }) {
           }}
         >
           <p>
-            پاسخ قطعی سرور دریافت نشده است. برای جلوگیری
-            از ثبت تکراری، ارسال دوباره متوقف شد.
+            پاسخ قطعی سرور دریافت نشده است. برای جلوگیری از ثبت تکراری، ارسال
+            دوباره متوقف شد.
           </p>
 
           <p className="muted">
@@ -411,29 +387,19 @@ export default function ProductCreate({ onClose, onSaved }) {
       )}
 
       {choices && choices.categories.length === 0 && (
-        <p role="alert">
-          ابتدا از بخش دسته‌بندی‌ها یک دسته‌بندی بساز.
-        </p>
+        <p role="alert">ابتدا از بخش دسته‌بندی‌ها یک دسته‌بندی بساز.</p>
       )}
 
       {choices && choices.categories.length > 0 && (
         <form onSubmit={submit}>
           <fieldset
             className="form-grid"
-            disabled={
-              busy ||
-              Boolean(createdProduct) ||
-              Boolean(uncertain)
-            }
+            disabled={busy || Boolean(createdProduct) || Boolean(uncertain)}
             style={{ border: 0, margin: 0, padding: 0 }}
           >
             <label className="field">
               <span>نام محصول</span>
-              <input
-                name="name"
-                required
-                maxLength={200}
-              />
+              <input name="name" required maxLength={200} />
             </label>
 
             <label className="field">
@@ -448,29 +414,22 @@ export default function ProductCreate({ onClose, onSaved }) {
 
             <label className="field">
               <span>دسته‌بندی</span>
-              <select
-                name="category"
-                defaultValue=""
-                required
-              >
+              <DashboardSelect name="category" defaultValue="" required>
                 <option value="" disabled>
                   انتخاب دسته‌بندی
                 </option>
 
                 {choices.categories.map((category) => (
-                  <option
-                    key={category.id}
-                    value={category.id}
-                  >
+                  <option key={category.id} value={category.id}>
                     {category.name}
                   </option>
                 ))}
-              </select>
+              </DashboardSelect>
             </label>
 
             <label className="field">
               <span>برند — اختیاری</span>
-              <select name="brand" defaultValue="">
+              <DashboardSelect name="brand" defaultValue="">
                 <option value="">بدون برند</option>
 
                 {choices.brands.map((brand) => (
@@ -478,18 +437,12 @@ export default function ProductCreate({ onClose, onSaved }) {
                     {brand.name}
                   </option>
                 ))}
-              </select>
+              </DashboardSelect>
             </label>
 
             <label className="field">
               <span>قیمت پایه — مطابق واحد مبلغ Backend</span>
-              <input
-                name="price"
-                type="number"
-                min="0"
-                step="1"
-                required
-              />
+              <input name="price" type="number" min="0" step="1" required />
             </label>
 
             <label className="field">
@@ -507,28 +460,27 @@ export default function ProductCreate({ onClose, onSaved }) {
             <div className="full-width">
               <label className="field">
                 <span>توضیح کوتاه</span>
-                <input
-                  name="short_description"
-                  maxLength={500}
-                />
+                <input name="short_description" maxLength={500} />
               </label>
             </div>
 
-            <label className="field">
+            <div className="field full-width">
               <span>توضیحات کامل</span>
-              <textarea
-                name="long_description"
-                rows={4}
+              <RichTextEditor
+                name="long_description_html"
+                label="توضیحات کامل"
+                disabled={busy || Boolean(uncertain)}
               />
-            </label>
+            </div>
 
-            <label className="field">
+            <div className="field full-width">
               <span>توضیحات گالری</span>
-              <textarea
-                name="gallery_description"
-                rows={4}
+              <RichTextEditor
+                name="gallery_description_html"
+                label="توضیحات گالری"
+                disabled={busy || Boolean(uncertain)}
               />
-            </label>
+            </div>
           </fieldset>
 
           <div style={{ marginTop: 28 }}>
@@ -536,9 +488,7 @@ export default function ProductCreate({ onClose, onSaved }) {
 
             <label
               className={`gallery-picker ${
-                busy || uncertain
-                  ? "gallery-picker-disabled"
-                  : ""
+                busy || uncertain ? "gallery-picker-disabled" : ""
               }`}
             >
               <input
@@ -551,10 +501,7 @@ export default function ProductCreate({ onClose, onSaved }) {
                 onChange={chooseImages}
               />
 
-              <span
-                className="gallery-picker-icon"
-                aria-hidden="true"
-              >
+              <span className="gallery-picker-icon" aria-hidden="true">
                 <svg
                   width="30"
                   height="30"
@@ -565,13 +512,7 @@ export default function ProductCreate({ onClose, onSaved }) {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
-                  <rect
-                    x="3"
-                    y="3"
-                    width="18"
-                    height="18"
-                    rx="4"
-                  />
+                  <rect x="3" y="3" width="18" height="18" rx="4" />
                   <circle cx="8.5" cy="8.5" r="1.5" />
                   <path d="m21 15-5-5L5 21" />
                 </svg>
@@ -587,20 +528,13 @@ export default function ProductCreate({ onClose, onSaved }) {
                 برای انتخاب چند تصویر روی این کادر کلیک کن
               </span>
 
-              <span
-                className="gallery-picker-button"
-                aria-hidden="true"
-              >
-                {selected.length
-                  ? "تغییر انتخاب تصاویر"
-                  : "+ انتخاب تصاویر"}
+              <span className="gallery-picker-button" aria-hidden="true">
+                {selected.length ? "تغییر انتخاب تصاویر" : "+ انتخاب تصاویر"}
               </span>
 
               <span className="gallery-picker-formats">
                 JPG · PNG · WebP
-                <span>
-                  حداکثر ۱۰ عکس، هر عکس تا ۵ مگابایت
-                </span>
+                <span>حداکثر ۱۰ عکس، هر عکس تا ۵ مگابایت</span>
               </span>
             </label>
 
@@ -655,9 +589,8 @@ export default function ProductCreate({ onClose, onSaved }) {
           </div>
 
           <p className="muted" style={{ margin: "22px 0" }}>
-            محصول به‌صورت پیش‌نویس و غیرفعال ذخیره می‌شود.
-            تصاویر انتخاب‌شده پس از ساخت، به همان محصول
-            اضافه می‌شوند.
+            محصول به‌صورت پیش‌نویس و غیرفعال ذخیره می‌شود. تصاویر انتخاب‌شده پس
+            از ساخت، به همان محصول اضافه می‌شوند.
           </p>
 
           {busy && (

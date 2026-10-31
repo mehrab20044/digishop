@@ -201,7 +201,7 @@ def _prepare_items(items, products, variants):
 
         stock_owner = variant if item.had_variant else product
         variant_name = (
-            " / ".join(filter(None, [variant.color, variant.storage]))
+            variant.display_name
             if item.had_variant
             else ""
         )

@@ -13,6 +13,8 @@ class StoreSettings(models.Model):
     shipping_cost = models.PositiveBigIntegerField(
         "هزینه ارسال (تومان)",
     )
+    returns_enabled = models.BooleanField(default=False)
+    return_days = models.PositiveSmallIntegerField(default=7)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -117,8 +119,7 @@ class Order(models.Model):
             ),
             models.CheckConstraint(
                 condition=models.Q(
-                    total=models.F("subtotal")
-                    + models.F("shipping_cost"),
+                    total=models.F("subtotal") + models.F("shipping_cost"),
                 ),
                 name="orders_total_matches_amounts",
             ),
@@ -204,8 +205,7 @@ class OrderItem(models.Model):
             ),
             models.CheckConstraint(
                 condition=models.Q(
-                    line_total=models.F("unit_price")
-                    * models.F("quantity"),
+                    line_total=models.F("unit_price") * models.F("quantity"),
                 ),
                 name="orders_item_total_matches",
             ),
@@ -213,3 +213,6 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.product_name} × {self.quantity}"
+
+
+from .hub_models import OrderEvent, ReturnRequest, Shipment  # noqa: E402,F401

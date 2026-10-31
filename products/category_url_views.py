@@ -72,4 +72,7 @@ def category_page(request, path):
     ]}
     head += '<script type="application/ld+json">' + json.dumps(structured, ensure_ascii=False).replace("<", "\\u003c") + '</script>'
     html = html.replace("</head>", head + "</head>")
+    if category.description.strip():
+        content = f'<section class="sf-category-description"><h2>دربارهٔ {escape(category.name)}</h2><p style="white-space:pre-wrap">{escape(category.description)}</p></section>'
+        html = html.replace('<div id="root"></div>', '<div id="root">' + content + '</div>')
     return HttpResponse(html)

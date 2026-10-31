@@ -15,6 +15,7 @@ def get_default_variant(product):
             stock__gt=0,
             price__gt=0,
         )
+        .select_related("product")
         .order_by("price", "id")
         .first()
     )

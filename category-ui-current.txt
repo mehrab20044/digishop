@@ -1,0 +1,6875 @@
+
+
+===== FILE: frontend/package.json =====
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "eslint": "^10.13.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.13.0",
+    "vite": "^8.3.4"
+  }
+}
+
+
+===== FILE: frontend/src/main.jsx =====
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+
+import './index.css';
+import CustomerPortal from './CustomerPortal';
+import ManagementLogin from './ManagementLogin';
+import ManagementWorkspace from './ManagementWorkspace';
+import Storefront from './Storefront';
+
+const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
+let screen;
+
+if (pathname === '/login' || pathname === '/account') {
+  screen = <CustomerPortal />;
+} else if (pathname === '/management/login') {
+  screen = <ManagementLogin />;
+} else if (pathname === '/dashboard' || pathname.startsWith('/dashboard/')) {
+  screen = <ManagementWorkspace />;
+} else {
+  screen = <Storefront />;
+}
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>{screen}</StrictMode>,
+);
+
+
+===== FILE: frontend/src/Storefront.jsx =====
+import VariantPicker from "./attributes/VariantPicker";
+import RichContent from "./richtext/RichContent";
+import { Promotions } from "./banners/Promotions";
+import PublicPage from "./pages/PublicPage";
+import { StoreThemeProvider, useStoreTheme, themeVariables, readBootstrap } from "./appearance/StoreTheme";
+import PageLinks from "./pages/PageLinks";
+import CategoryRoute from "./storefront/CategoryRoute";
+import CategoryBrowser, { HomeCategoryStrip, flattenCategoryTree } from "./storefront/CategoryBrowser";
+
+import { CartProvider, CartBadge } from './cart/CartProvider';
+import AddToCart from './cart/AddToCart';
+import CartPage from './cart/CartPage';
+import { useEffect, useState } from 'react';
+import { catalogHref, cover, getStore, money, number, pageNumber, safeImage } from './storefront/store-api';
+import './storefront/storefront.css';
+import StoreCustomerLink from "./StoreCustomerLink";
+import CheckoutPage from "./orders/CheckoutPage";
+import OrdersPage from "./orders/OrdersPage";
+import OrderDetailPage from "./orders/OrderDetailPage";
+import FakePaymentPage from "./payments/FakePaymentPage";
+import CategoryMenu from "./storefront/CategoryMenu";
+
+function Icon({ name, size = 22, ...props }) {
+  const paths = {
+    search: <><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4.5 4.5" /></>,
+    user: <><circle cx="12" cy="8" r="4" /><path d="M4 22v-3a8 8 0 0 1 16 0v3" /></>,
+    bag: <><path d="M5 7h14l1 14H4L5 7Z" /><path d="M8 8V6a4 4 0 0 1 8 0v2" /></>,
+    arrow: <><path d="M19 12H5m6-6-6 6 6 6" /></>,
+    grid: <><rect x="3" y="3" width="7" height="7" rx="2" /><rect x="14" y="3" width="7" height="7" rx="2" /><rect x="3" y="14" width="7" height="7" rx="2" /><rect x="14" y="14" width="7" height="7" rx="2" /></>,
+    phone: <><rect x="6" y="2" width="12" height="20" rx="3" /><path d="M10 18h4M10 5h4" /></>,
+    check: <path d="m5 12 4 4L19 6" />,
+    close: <path d="m6 6 12 12M6 18 18 6" />,
+  };
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{paths[name] || paths.grid}</svg>;
+}
+
+function useStore(path) {
+  const [attempt, setAttempt] = useState(0);
+  const [result, setResult] = useState({ key: '', data: null, error: null });
+  const key = `${path}:${attempt}`;
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    let timedOut = false;
+    const timer = setTimeout(() => { timedOut = true; controller.abort(); }, 15000);
+    getStore(path, controller.signal)
+      .then(data => { if (active) setResult({ key, data, error: null }); })
+      .catch(error => {
+        if (active) setResult({ key, data: null, error: timedOut ? new Error('پاسخ سرور طول کشید. دوباره تلاش کن.') : error });
+      })
+      .finally(() => clearTimeout(timer));
+    return () => { active = false; clearTimeout(timer); controller.abort(); };
+  }, [path, key]);
+  return { data: result.key === key ? result.data : null, error: result.key === key ? result.error : null, retry: () => setAttempt(value => value + 1) };
+}
+
+function Failure({ error, retry }) {
+  return <div className="sf-message" role="alert"><h2>اطلاعات دریافت نشد</h2><p>{error.message}</p><button className="sf-button" onClick={retry}>تلاش دوباره</button></div>;
+}
+
+function ProductImage({ src, name, eager = false }) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) return <div className="sf-no-image"><Icon name="phone" size={54} /><span>تصویر ثبت نشده</span></div>;
+  return <img src={src} alt={name} loading={eager ? 'eager' : 'lazy'} onError={() => setFailed(true)} />;
+}
+
+function Header({ search }) {
+  return <>
+    <div className="ads-bottom">
+  <Promotions placement="bottom" />
+</div>
+    <header className="sf-header">
+      <div className="sf-container sf-header-main">
+        <a className="sf-brand" href="/" aria-label="دیجی‌شاپ، صفحهٔ اصلی"><span className="sf-brand-symbol">D<span /></span><span>دیجی‌شاپ<small>DIGISHOP</small></span></a>
+        <form className="sf-search" action="/products" method="get" role="search"><Icon name="search" /><input name="search" aria-label="جست‌وجوی محصول" placeholder="دنبال چه محصولی می‌گردی؟" defaultValue={search} maxLength={150} /><button type="submit">جست‌وجو</button></form>
+        <StoreCustomerLink /><CartBadge />
+      </div>
+      <nav className="sf-container sf-nav sf-category-nav" aria-label="منوی فروشگاه"><CategoryMenu /><a href="/products">همهٔ محصولات</a><a href="/products?in_stock=true">کالاهای موجود</a><a href="/products?ordering=-created_at">جدیدترین‌ها</a><a href="/orders">سفارش‌های من</a></nav>
+    </header>
+  </>;
+}
+
+function CategoryStrip() {
+  return <HomeCategoryStrip />;
+}
+
+function ProductCard({ product }) {
+  const image = cover(product);
+  return <article className="sf-product-card"><a href={`/products/${product.id}`} className="sf-product-link"><div className="sf-product-image"><span className={`sf-stock ${product.is_available ? '' : 'sf-unavailable'}`}>{product.is_available ? 'موجود' : 'ناموجود'}</span><ProductImage key={image} src={image} name={product.name} /></div><div className="sf-product-info"><span className="sf-product-brand">{product.brand?.name || product.category?.name || 'دیجی‌شاپ'}</span><h3>{product.name}</h3><p>{product.short_description || product.category?.name || 'مشاهدهٔ مشخصات محصول'}</p><div className="sf-product-bottom"><strong>{product.is_available ? money(product.effective_price) : 'ناموجود'}</strong><span className="sf-card-arrow"><Icon name="arrow" size={18} /></span></div></div></a></article>;
+}
+
+function Skeletons() {
+  return <div className="sf-products" role="status" aria-label="در حال دریافت محصولات">{[1, 2, 3, 4].map(key => <div className="sf-skeleton" key={key}><span /><i /><i /></div>)}</div>;
+}
+
+function pageHref(search, page) {
+  if (!window.location.pathname.startsWith("/products/category/")) return catalogHref(search, { page });
+  const params = new URLSearchParams(search); params.delete("category"); params.set("page", String(page));
+  return window.location.pathname + `?${params}`;
+}
+function Catalog({ home, search }) {
+  const params = new URLSearchParams(search);
+  const page = pageNumber(params.get('page'));
+  function submitFilters(event) {
+    event.preventDefault();
+    const values = new URLSearchParams(new FormData(event.currentTarget));
+    const id = values.get("category");
+    const selected = categoryRows.find(row => String(row.id) === id);
+    if (selected?.url) values.delete("category");
+    for (const [key, value] of [...values]) if (!value) values.delete(key);
+    window.location.assign((selected?.url || "/products") + (values.size ? `?${values}` : ""));
+  }
+const allowed = [
+  "search",
+  "category",
+  "categories",
+  "min_price",
+  "max_price",
+  "in_stock",
+  "ordering",
+];  const query = new URLSearchParams();
+  for (const key of allowed) if (params.get(key)) query.set(key, params.get(key));
+  query.set('page', String(page));
+  const list = useStore(`products/?${query}`);
+  const categories = useStore("categories/tree/");
+  const categoryRows = flattenCategoryTree(categories.data || []);
+  const rows = Array.isArray(list.data) ? list.data : list.data?.results || [];
+  const count = list.data?.count ?? rows.length;
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const Heading = home ? 'h2' : 'h1';
+  const currentCategory = categoryRows.find(category => String(category.id) === params.get('category'));
+  return <section className="sf-catalog" id="products">
+    {!home && <CategoryBrowser search={search} />}
+    <div className="sf-section-title"><div><span className="sf-overline">یک قدم نزدیک‌تر به انتخابت</span><Heading>{home ? 'تازه‌های دیجی‌شاپ' : currentCategory?.name || 'همهٔ محصولات'}</Heading></div>{home ? <a href="/products">مشاهدهٔ همه<Icon name="arrow" size={16} /></a> : <span className="sf-muted">{list.data ? `${number(count)} محصول` : 'در حال دریافت…'}</span>}</div>
+    {!home && <><button className="sf-filter-toggle" aria-expanded={filtersOpen} aria-controls="sf-filters" onClick={() => setFiltersOpen(value => !value)}>فیلتر و مرتب‌سازی</button><form id="sf-filters" className={`sf-filters ${filtersOpen ? 'sf-filters-open' : ''}`} onSubmit={submitFilters} action="/products" method="get">
+      <label>جست‌وجو<input type="search" name="search" maxLength={150} defaultValue={params.get('search') || ''} placeholder="نام محصول" /></label>
+      <label>دسته‌بندی<select key={categoryRows.length} name="category" defaultValue={params.get('category') || ''}><option value="">همهٔ دسته‌ها</option>{categoryRows.map(category => <option value={category.id} key={category.id}>{category.name}</option>)}</select></label>
+      <label>از قیمت<input type="number" min="0" step="1" name="min_price" defaultValue={params.get('min_price') || ''} placeholder="حداقل" /></label>
+      <label>تا قیمت<input type="number" min="0" step="1" name="max_price" defaultValue={params.get('max_price') || ''} placeholder="حداکثر" /></label>
+      <label>مرتب‌سازی<select name="ordering" defaultValue={params.get('ordering') || '-created_at'}><option value="-created_at">جدیدترین</option><option value="effective_price">ارزان‌ترین</option><option value="-effective_price">گران‌ترین</option><option value="created_at">قدیمی‌ترین</option></select></label>
+      <label className="sf-checkbox"><input type="checkbox" name="in_stock" value="true" defaultChecked={params.get('in_stock') === 'true'} />فقط موجودها</label><button className="sf-button" type="submit">اعمال فیلتر</button><a className="sf-reset" href="/products">حذف فیلترها</a>
+    {params.get("categories") && (
+  <input
+    type="hidden"
+    name="categories"
+    value={params.get("categories")}
+  />
+)}</form>{categories.error && <div className="sf-inline-error" role="alert">فهرست دسته‌بندی‌ها دریافت نشد. <button onClick={categories.retry}>تلاش مجدد</button></div>}</>}
+    {params.get('search') && <p className="sf-search-result">نتایج جست‌وجوی «{params.get('search')}»</p>}
+    {list.error ? <Failure error={list.error} retry={list.retry} /> : !list.data ? <Skeletons /> : rows.length === 0 ? <div className="sf-message"><Icon name="search" size={36} /><h2>محصولی پیدا نشد</h2><p>جست‌وجو یا فیلترها را تغییر بده.</p><a className="sf-button" href="/products">دیدن همهٔ محصولات</a></div> : <><div className="sf-products">{rows.map(product => <ProductCard key={product.id} product={product} />)}</div>{!home && <nav className="sf-pagination" aria-label="صفحه‌بندی محصولات">{list.data.previous ? <a href={pageHref(search, page - 1)}>صفحهٔ قبل</a> : <span aria-disabled="true">صفحهٔ قبل</span>}<b>صفحهٔ {number(page)}</b>{list.data.next ? <a href={pageHref(search, page + 1)}>صفحهٔ بعد</a> : <span aria-disabled="true">صفحهٔ بعد</span>}</nav>}</>}
+    {!home && currentCategory?.description?.trim() && <section className="sf-category-description" aria-label={`توضیحات ${currentCategory.name}`}><h2>دربارهٔ {currentCategory.name}</h2><p>{currentCategory.description}</p></section>}
+  </section>;
+}
+
+function ProductDetail({ id }) {
+  const result = useStore(`products/${id}/`);
+  if (result.error) return <Failure error={result.error} retry={result.retry} />;
+  if (!result.data) return <div className="sf-message" role="status">در حال دریافت محصول…</div>;
+  return <ProductContent key={id} product={result.data} />;
+}
+
+function ProductContent({ product }) {
+  const gallery = (product.images || [])
+    .map((image) => ({
+      ...image,
+      image: safeImage(image.image),
+    }))
+    .filter((image) => image.image)
+    .sort(
+      (a, b) =>
+        Number(b.is_primary) - Number(a.is_primary) ||
+        a.sort_order - b.sort_order ||
+        a.id - b.id,
+    );
+
+  if (!gallery.length && safeImage(product.image)) {
+    gallery.push({
+      id: "legacy",
+      image: safeImage(product.image),
+    });
+  }
+
+  const variants = (product.variants || []).filter(
+    (variant) => variant.is_active,
+  );
+
+  const [selectedId, setSelectedId] = useState(
+    product.default_variant?.id || variants[0]?.id || null,
+  );
+
+  const [imageIndex, setImageIndex] = useState(0);
+
+  const selected = variants.find(
+    (variant) => variant.id === selectedId,
+  );
+
+  const price = selected ? selected.price : product.effective_price;
+
+  const available = Boolean(
+    product.is_available &&
+      (!selected || (selected.stock > 0 && selected.price > 0)),
+  );
+
+  return (
+    <>
+      <nav className="sf-breadcrumb" aria-label="مسیر صفحه">
+        <a href="/">فروشگاه</a>
+        <span>/</span>
+        <a href={catalogHref("", { category: product.category?.id })}>
+          {product.category?.name || "محصولات"}
+        </a>
+        <span>/</span>
+        <span>{product.name}</span>
+      </nav>
+
+      <div className="sf-product-layout">
+        <section className="sf-detail">
+          <div className="sf-gallery">
+            <div className="sf-main-image">
+              <ProductImage
+                key={gallery[imageIndex]?.image}
+                src={gallery[imageIndex]?.image}
+                name={product.name}
+                eager
+              />
+            </div>
+
+            {gallery.length > 1 && (
+              <div className="sf-thumbnails" aria-label="تصاویر محصول">
+                {gallery.map((image, index) => (
+                  <button
+                    key={image.id}
+                    type="button"
+                    className={index === imageIndex ? "is-active" : ""}
+                    aria-label={`تصویر ${number(index + 1)}`}
+                    aria-pressed={index === imageIndex}
+                    onClick={() => setImageIndex(index)}
+                  >
+                    <ProductImage
+                      src={image.image}
+                      name={`${product.name}، تصویر ${number(index + 1)}`}
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {(product.gallery_description_html ||
+              product.gallery_description) && (
+              <RichContent
+                className="sf-gallery-caption"
+                html={product.gallery_description_html}
+                plainText={product.gallery_description}
+              />
+            )}
+          </div>
+
+          <div className="sf-detail-copy">
+            <span className="sf-overline">
+              {product.brand?.name || product.category?.name}
+            </span>
+
+            <h1>{product.name}</h1>
+            <p className="sf-detail-intro">{product.short_description}</p>
+
+            <span
+              className={`sf-availability ${
+                available ? "" : "sf-availability-off"
+              }`}
+            >
+              <span />
+              {available
+                ? "موجود در فروشگاه"
+                : "این انتخاب فعلاً ناموجود است"}
+            </span>
+
+            {variants.length > 0 && (
+              <VariantPicker axes={product.variant_schema || []} variants={variants} selectedId={selectedId} onChange={setSelectedId} />
+            )}
+          </div>
+        </section>
+
+        <aside
+          className="sf-purchase-column"
+          aria-label="خرید محصول"
+        >
+          <div className="sf-purchase sf-purchase-sticky">
+            <div className="sf-purchase-heading">
+  <span>انتخاب شما</span>
+  <h2>{product.name}</h2>
+
+  {selected && (
+    <p>
+      {selected.label || [selected.color, selected.storage].filter(Boolean).join(" / ")}
+    </p>
+  )}
+</div>
+            <span>
+              قیمت {selected ? "تنوع انتخاب‌شده" : "محصول"}
+            </span>
+
+            <strong>{available ? money(price) : "ناموجود"}</strong>
+
+            {selected && (
+              <small>
+                کد کالا: <bdi>{selected.sku}</bdi>
+              </small>
+            )}
+
+            <AddToCart
+              key={`${product.id}:${selected?.id || 0}`}
+              product={product}
+              variant={selected}
+              available={available}
+            />
+          </div>
+        </aside>
+
+        <div className="sf-detail-sections">
+          <section>
+            <h2>دربارهٔ محصول</h2>
+            <RichContent
+              html={product.long_description_html}
+              plainText={
+                product.long_description ||
+                product.description ||
+                "توضیحات تکمیلی ثبت نشده است."
+              }
+            />
+          </section>
+
+          <section>
+            <h2>مشخصات فنی</h2>
+
+            <dl>
+              {product.brand && (
+                <div>
+                  <dt>برند</dt>
+                  <dd>{product.brand.name}</dd>
+                </div>
+              )}
+
+              <div>
+                <dt>دسته‌بندی</dt>
+                <dd>{product.category?.name || "—"}</dd>
+              </div>
+
+              {(product.attribute_values || []).map((item) => (
+                <div key={item.id}>
+                  <dt>{item.attribute}</dt>
+                  <dd>{item.value}{item.unit ? ` ${item.unit}` : ""}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function Footer() {
+  return <footer className="sf-footer"><div className="sf-container"><div><a className="sf-footer-brand" href="/">دیجی‌شاپ<span>.</span></a><p>برای انتخابی که به کارِ هر روزت می‌آید.</p></div><nav aria-label="پیوندهای پایین صفحه"><a href="/products">محصولات</a><a href="/account">حساب کاربری</a><a href="/login">ورود / ثبت‌نام</a></nav><small>دیجی‌شاپ · فروشگاه کالای دیجیتال</small></div></footer>;
+}
+
+export default function Storefront() {
+  const pathname =
+    window.location.pathname.replace(/\/+$/, "") || "/";
+  const search = window.location.search;
+
+  const home = pathname === "/";
+  const isCart = pathname === "/cart";
+  const isCheckout = pathname === "/checkout";
+  const isOrders = pathname === "/orders";
+
+  const orderDetail = pathname.match(
+    /^\/orders\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i,
+  );
+
+  const fakePayment = pathname.match(
+    /^\/payments\/fake\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i,
+  );
+
+  const detail = pathname.match(
+    /^\/products\/([1-9][0-9]*)$/,
+  );
+
+  const found =
+    home ||
+    pathname === "/products" ||
+    Boolean(detail);
+
+  useEffect(() => {
+    document.documentElement.lang = "fa";
+
+    let title = "صفحه پیدا نشد";
+
+    if (
+      /^\/payments\/fake\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        pathname,
+      )
+    ) {
+      title = "پرداخت آزمایشی";
+    } else if (pathname === "/orders") {
+      title = "سفارش‌های من";
+    } else if (
+      /^\/orders\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        pathname,
+      )
+    ) {
+      title = "جزئیات سفارش";
+    } else if (pathname === "/checkout") {
+      title = "تأیید سفارش";
+    } else if (pathname === "/cart") {
+      title = "سبد خرید";
+    } else if (pathname === "/") {
+      title = "انتخاب هوشمند کالای دیجیتال";
+    } else if (/^\/products\/[1-9][0-9]*$/.test(pathname)) {
+      title = "جزئیات محصول";
+    } else if (pathname.startsWith("/pages/")) {
+      const boot = readBootstrap();
+      title = boot?.page?.seo_title || boot?.page?.title || "صفحهٔ فروشگاه";
+    } else if (pathname === "/products") {
+      title = "محصولات";
+    }
+
+    document.title = `${title} | دیجی‌شاپ`;
+  }, [pathname]);
+
+  let content;
+
+  if (fakePayment) {
+    content = (
+      <FakePaymentPage
+        key={fakePayment[1]}
+        paymentId={fakePayment[1]}
+      />
+    );
+  } else if (isOrders) {
+    content = <OrdersPage />;
+  } else if (orderDetail) {
+    content = (
+      <OrderDetailPage
+        key={orderDetail[1]}
+        orderId={orderDetail[1]}
+      />
+    );
+  } else if (isCheckout) {
+    content = <CheckoutPage />;
+  } else if (isCart) {
+    content = <CartPage />;
+  } else if (detail) {
+    content = <ProductDetail id={detail[1]} />;
+  } else if (pathname.startsWith("/products/category/")) {
+    content = <CategoryRoute renderCatalog={categorySearch => <Catalog home={false} search={categorySearch} />} />;
+  } else if (pathname.startsWith("/pages/")) {
+    content = <PublicPage slug={decodeURIComponent(pathname.slice(7))} />;
+  } else if (found) {
+    content = <Catalog home={home} search={search} />;
+  } else {
+    content = (
+      <div className="sf-message">
+        <h1>صفحه پیدا نشد</h1>
+        <a className="sf-button" href="/">
+          بازگشت به فروشگاه
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <StoreLayout>
+      {home && <div className="bn-hero-wide"><Promotions placement="hero" /></div>}
+        <main id="sf-main" className="sf-container">
+          {home && (
+            <>
+              <h1 className="bn-sr">فروشگاه اینترنتی دیجی‌شاپ</h1>
+              <CategoryStrip />
+              <Promotions placement="tiles" />
+            </>
+          )}
+
+          {content}
+
+          {home && (
+            <div className="sf-bottom-banner">
+              <div>
+                <span className="sf-overline">
+                  انتخاب خوب، از شناخت شروع می‌شود
+                </span>
+                <h2>قبل از انتخاب، جزئیات را ببین.</h2>
+                <p>
+                  مشخصات فنی، تصاویر و تنوع‌های هر محصول را
+                  یک‌جا بررسی کن.
+                </p>
+              </div>
+
+              <a href="/products">
+                شروع جست‌وجو
+                <Icon name="arrow" />
+              </a>
+            </div>
+          )}
+        </main>
+
+    </StoreLayout>
+  );
+}
+
+
+export function StoreLayout({ children, themeOverride, preview = false, linksOverride }) {
+  return <CartProvider><StoreThemeProvider override={themeOverride}><ThemedShell preview={preview} linksOverride={linksOverride}>{children}</ThemedShell></StoreThemeProvider></CartProvider>;
+}
+function ThemedShell({ children, preview, linksOverride }) {
+  const theme = useStoreTheme();
+
+  return (
+    <div
+      className="sf-root sf-themed"
+      dir="rtl"
+      lang="fa"
+      style={themeVariables(theme)}
+      onClickCapture={
+        preview
+          ? (event) => {
+              if (event.target.closest?.("a[href]")) {
+                event.preventDefault();
+              }
+            }
+          : undefined
+      }
+      onSubmitCapture={
+        preview ? (event) => event.preventDefault() : undefined
+      }
+    >
+      <a className="sf-skip" href="#sf-main">
+        رفتن به محتوای اصلی
+      </a>
+
+      <Header
+        search={
+          preview
+            ? ""
+            : new URLSearchParams(window.location.search).get("search") || ""
+        }
+      />
+
+      {children}
+
+      <PageLinks override={linksOverride} />
+
+      <Footer />
+
+      <div className="ads-bottom">
+        <Promotions placement="bottom" />
+      </div>
+    </div>
+  );
+}
+
+
+===== FILE: frontend/src/storefront/CategoryMenu.jsx =====
+import { useEffect, useId, useRef, useState } from "react";
+
+import {
+  flattenCategoryTree,
+  useCategoryTree,
+} from "./CategoryBrowser";
+
+import "./category-dropdown.css";
+
+const normalize = (value) =>
+  value
+    .replace(/ي/g, "ی")
+    .replace(/ك/g, "ک")
+    .trim()
+    .toLocaleLowerCase();
+
+const categoryLink = (node) =>
+  node.url || `/products?category=${node.id}`;
+
+function GridIcon() {
+  return (
+    <svg
+      width="21"
+      height="21"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      aria-hidden="true"
+    >
+      <rect x="3" y="3" width="7" height="7" rx="2" />
+      <rect x="14" y="3" width="7" height="7" rx="2" />
+      <rect x="3" y="14" width="7" height="7" rx="2" />
+      <rect x="14" y="14" width="7" height="7" rx="2" />
+    </svg>
+  );
+}
+
+export default function CategoryMenu() {
+  const { data, error, retry } = useCategoryTree();
+
+  const [open, setOpen] = useState(false);
+  const [path, setPath] = useState([]);
+  const [query, setQuery] = useState("");
+
+  const host = useRef(null);
+  const trigger = useRef(null);
+  const panel = useRef(null);
+  const keyboardOpen = useRef(false);
+
+  const id = useId();
+
+  const flat = flattenCategoryTree(data);
+
+  const current = flat.find(
+    (row) => row.id === path.at(-1),
+  );
+
+  const displayed =
+    current ||
+    flat.find((row) => row.id === data?.[0]?.id);
+
+  const results = flat.filter((row) =>
+    normalize(
+      row.path.map((part) => part.name).join(" "),
+    ).includes(normalize(query)),
+  );
+
+  function close(restoreFocus = false) {
+    setOpen(false);
+
+    if (restoreFocus) {
+      trigger.current?.focus();
+    }
+  }
+
+  function browse(node) {
+    setPath(node.path.map((part) => part.id));
+    setQuery("");
+  }
+
+  function show() {
+    setOpen(true);
+    retry();
+  }
+
+  useEffect(() => {
+    if (!open) return;
+
+    function outside(event) {
+      if (!host.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    }
+
+    function escape(event) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+        trigger.current?.focus();
+      }
+    }
+
+    function updateHeight() {
+      if (!panel.current) return;
+
+      const viewport = window.visualViewport;
+
+      const bottom = viewport
+        ? viewport.height + viewport.offsetTop
+        : window.innerHeight;
+
+      const top =
+        panel.current.getBoundingClientRect().top;
+
+      panel.current.style.setProperty(
+        "--cd-available",
+        `${Math.max(100, bottom - top - 12)}px`,
+      );
+    }
+
+    const frame = requestAnimationFrame(updateHeight);
+
+    window.addEventListener("resize", updateHeight);
+    window.visualViewport?.addEventListener(
+      "resize",
+      updateHeight,
+    );
+
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+
+    return () => {
+      cancelAnimationFrame(frame);
+
+      window.removeEventListener("resize", updateHeight);
+      window.visualViewport?.removeEventListener(
+        "resize",
+        updateHeight,
+      );
+
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (open && data && keyboardOpen.current) {
+      keyboardOpen.current = false;
+
+      const target =
+        panel.current?.querySelector(".cd-roots button") ||
+        panel.current?.querySelector("input");
+
+      target?.focus();
+    }
+  }, [open, data]);
+
+  useEffect(() => {
+    for (const selector of [
+      ".cd-layout",
+      ".cd-content",
+      ".cd-results",
+    ]) {
+      const element =
+        panel.current?.querySelector(selector);
+
+      if (element) element.scrollTop = 0;
+    }
+  }, [path, query]);
+
+  return (
+    <div
+      className="cd-menu"
+      ref={host}
+      onBlur={(event) => {
+        if (
+          event.relatedTarget &&
+          !event.currentTarget.contains(event.relatedTarget)
+        ) {
+          setOpen(false);
+        }
+      }}
+    >
+      <button
+        ref={trigger}
+        type="button"
+        className={`cd-trigger ${open ? "is-open" : ""}`}
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => (open ? close() : show())}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            keyboardOpen.current = true;
+            show();
+          }
+        }}
+      >
+        <GridIcon />
+        <span>دسته‌بندی کالاها</span>
+        <span className="cd-chevron" aria-hidden="true">
+          ⌄
+        </span>
+      </button>
+
+      {open && (
+        <section
+          ref={panel}
+          id={id}
+          className={`cd-panel ${current ? "has-path" : ""}`}
+          aria-label="فهرست دسته‌بندی کالاها"
+          onClick={(event) => {
+            if (event.target.closest("a[href]")) {
+              close();
+            }
+          }}
+        >
+          <header className="cd-heading">
+            <div>
+              <strong>دسته‌بندی کالاها</strong>
+              <small>ساده‌تر به انتخابت برس</small>
+            </div>
+
+            <button
+              type="button"
+              className="cd-close"
+              aria-label="بستن دسته‌بندی‌ها"
+              onClick={() => close(true)}
+            >
+              ×
+            </button>
+          </header>
+
+          <div className="cd-search">
+            <svg
+              width="19"
+              height="19"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              aria-hidden="true"
+            >
+              <circle cx="10.5" cy="10.5" r="6.5" />
+              <path d="m16 16 4 4" />
+            </svg>
+
+            <input
+              type="search"
+              aria-label="جست‌وجوی دسته‌بندی"
+              placeholder="دنبال کدام دسته‌ای؟ مثلاً کلاه…"
+              value={query}
+              onChange={(event) =>
+                setQuery(event.target.value)
+              }
+            />
+          </div>
+
+          {error && (
+            <div className="cd-error" role="alert">
+              {error}
+
+              <button type="button" onClick={retry}>
+                تلاش دوباره
+              </button>
+            </div>
+          )}
+
+          {data === null ? (
+            <p className="cd-empty" role="status">
+              در حال دریافت دسته‌ها…
+            </p>
+          ) : query.trim() ? (
+            <div className="cd-results">
+              <small className="cd-count">
+                {results.length.toLocaleString("fa-IR")} نتیجه
+              </small>
+
+              {results.map((row) => (
+                <a
+                  className="cd-result"
+                  key={row.id}
+                  href={categoryLink(row)}
+                >
+                  <span className="cd-symbol">
+                    <GridIcon />
+                  </span>
+
+                  <div>
+                    <strong>{row.name}</strong>
+                    <small>
+                      {row.path
+                        .map((part) => part.name)
+                        .join(" / ")}
+                    </small>
+                  </div>
+
+                  <span aria-hidden="true">←</span>
+                </a>
+              ))}
+
+              {!results.length && (
+                <p className="cd-empty">
+                  دسته‌ای پیدا نشد؛ نام کوتاه‌تری بنویس.
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="cd-layout">
+              <nav
+                className="cd-roots"
+                aria-label="دسته‌های اصلی"
+              >
+                {data.map((root) => (
+                  <button
+                    key={root.id}
+                    type="button"
+                    className={
+                      displayed?.path[0]?.id === root.id
+                        ? "is-active"
+                        : ""
+                    }
+                    onClick={() =>
+                      browse(
+                        flat.find((row) => row.id === root.id),
+                      )
+                    }
+                    onPointerEnter={() => {
+                      const mouse = window.matchMedia(
+                        "(hover: hover) and (pointer: fine)",
+                      ).matches;
+
+                      if (
+                        mouse &&
+                        displayed?.path[0]?.id !== root.id
+                      ) {
+                        browse(
+                          flat.find(
+                            (row) => row.id === root.id,
+                          ),
+                        );
+                      }
+                    }}
+                  >
+                    <GridIcon />
+                    <span>{root.name}</span>
+                    <span aria-hidden="true">‹</span>
+                  </button>
+                ))}
+
+                {!data.length && (
+                  <p className="cd-empty">
+                    هنوز دسته‌ای ثبت نشده است.
+                  </p>
+                )}
+              </nav>
+
+              <div className="cd-content">
+                {displayed && (
+                  <>
+                    <button
+                      type="button"
+                      className="cd-back"
+                      onClick={() =>
+                        setPath(
+                          (current?.path || [])
+                            .slice(0, -1)
+                            .map((part) => part.id),
+                        )
+                      }
+                    >
+                      →{" "}
+                      {current?.path.length > 1
+                        ? `برگشت به ${current.path.at(-2).name}`
+                        : "همهٔ دسته‌ها"}
+                    </button>
+
+                    <nav
+                      className="cd-path"
+                      aria-label="مسیر انتخاب دسته"
+                    >
+                      {displayed.path.map((part, index) => (
+                        <span key={part.id}>
+                          {index > 0 && (
+                            <i aria-hidden="true">/</i>
+                          )}
+
+                          <button
+                            type="button"
+                            aria-current={
+                              part.id === displayed.id
+                                ? "page"
+                                : undefined
+                            }
+                            onClick={() =>
+                              setPath(
+                                displayed.path
+                                  .slice(0, index + 1)
+                                  .map((item) => item.id),
+                              )
+                            }
+                          >
+                            {part.name}
+                          </button>
+                        </span>
+                      ))}
+                    </nav>
+
+                    <a
+                      className="cd-view-all"
+                      href={categoryLink(displayed)}
+                    >
+                      <div>
+                        <small>مشاهدهٔ مجموعه</small>
+                        <strong>
+                          همهٔ محصولات {displayed.name}
+                        </strong>
+                      </div>
+
+                      <span aria-hidden="true">←</span>
+                    </a>
+
+                    <div className="cd-children">
+                      {(displayed.children || []).map(
+                        (child) => (
+                          <article
+                            key={child.id}
+                            className="cd-child"
+                          >
+                            <a href={categoryLink(child)}>
+                              <span className="cd-dot" />
+                              <strong>{child.name}</strong>
+                              <span aria-hidden="true">←</span>
+                            </a>
+
+                            {child.children?.length > 0 ? (
+                              <>
+                                <div className="cd-preview">
+                                  {child.children
+                                    .slice(0, 3)
+                                    .map((item) => (
+                                      <a
+                                        key={item.id}
+                                        href={categoryLink(item)}
+                                      >
+                                        {item.name}
+                                      </a>
+                                    ))}
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    browse(
+                                      flat.find(
+                                        (row) =>
+                                          row.id === child.id,
+                                      ),
+                                    )
+                                  }
+                                >
+                                  همهٔ زیر‌دسته‌ها
+                                  <span aria-hidden="true">
+                                    ‹
+                                  </span>
+                                </button>
+                              </>
+                            ) : (
+                              <small>
+                                مشاهدهٔ کالاهای این دسته
+                              </small>
+                            )}
+                          </article>
+                        ),
+                      )}
+                    </div>
+
+                    {!displayed.children?.length && (
+                      <div className="cd-leaf">
+                        <GridIcon />
+                        <strong>انتخابت مشخص شد</strong>
+                        <p>
+                          برای دیدن کالاهای {displayed.name} روی
+                          «همهٔ محصولات» بزن.
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          <footer className="cd-footer">
+            <a href="/products">
+              همهٔ محصولات فروشگاه ←
+            </a>
+
+            <button type="button" onClick={retry}>
+              تازه‌سازی دسته‌ها
+            </button>
+          </footer>
+        </section>
+      )}
+    </div>
+  );
+}
+
+===== FILE: frontend/src/storefront/CategoryBrowser.jsx =====
+import { useEffect, useState } from "react";
+
+import { API_BASE, catalogHref } from "./store-api";
+
+import "./category-browser.css";
+
+export const normalizeCategory = (value) =>
+  String(value)
+    .replace(/ي/g, "ی")
+    .replace(/ك/g, "ک")
+    .trim()
+    .toLocaleLowerCase();
+
+export function CategoryMark() {
+  return (
+    <svg
+      className="cb-mark"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      aria-hidden="true"
+    >
+      <rect x="3" y="3" width="7" height="7" rx="2" />
+      <rect x="14" y="3" width="7" height="7" rx="2" />
+      <rect x="3" y="14" width="7" height="7" rx="2" />
+      <rect x="14" y="14" width="7" height="7" rx="2" />
+    </svg>
+  );
+}
+
+export function useCategoryTree() {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    function refresh() {
+      if (document.visibilityState !== "hidden") {
+        setAttempt((value) => value + 1);
+      }
+    }
+
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    let timeout = false;
+
+    const timer = setTimeout(() => {
+      timeout = true;
+      controller.abort();
+    }, 15000);
+
+    setError("");
+
+    async function load() {
+      const response = await fetch(
+        `${API_BASE}/categories/tree/`,
+        {
+          signal: controller.signal,
+          cache: "no-store",
+          credentials: "omit",
+          headers: { Accept: "application/json" },
+        },
+      );
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(
+          result?.error?.message ||
+            "دریافت دسته‌بندی‌ها انجام نشد.",
+        );
+      }
+
+      if (!Array.isArray(result)) {
+        throw new Error("ساختار دسته‌بندی‌ها معتبر نیست.");
+      }
+
+      if (active) setData(result);
+    }
+
+    load()
+      .catch((err) => {
+        if (active) {
+          setError(
+            timeout
+              ? "دریافت دسته‌بندی‌ها طول کشید؛ دوباره تلاش کنید."
+              : err.message,
+          );
+        }
+      })
+      .finally(() => clearTimeout(timer));
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [attempt]);
+
+  return {
+    data,
+    error,
+    retry: () => setAttempt((value) => value + 1),
+  };
+}
+
+export function flattenCategoryTree(roots) {
+  const rows = [];
+  const seen = new Set();
+
+  function walk(node, ancestors) {
+    if (seen.has(node.id)) return;
+
+    seen.add(node.id);
+
+    const path = [
+      ...ancestors,
+      { id: node.id, name: node.name, url: node.url },
+    ];
+
+    rows.push({ ...node, path });
+
+    for (const child of node.children || []) {
+      walk(child, path);
+    }
+  }
+
+  for (const root of roots || []) {
+    walk(root, []);
+  }
+
+  return rows;
+}
+
+export function categoryLink(search, category) {
+  if (!category?.url) {
+    return catalogHref(search, {
+      category: category?.id || null,
+      categories: null,
+      page: null,
+    });
+  }
+
+  const params = new URLSearchParams(search);
+
+  for (const key of ["category", "categories", "page"]) {
+    params.delete(key);
+  }
+
+  return (
+    category.url +
+    (params.size ? `?${params}` : "")
+  );
+}
+
+export function HomeCategoryStrip() {
+  const { data, error, retry } = useCategoryTree();
+
+  return (
+    <section
+      className="cb-home"
+      aria-label="دسته‌بندی کالاها"
+    >
+      <header>
+        <div>
+          <small>انتخاب را از اینجا شروع کن</small>
+          <h2>دسته‌بندی کالاها</h2>
+        </div>
+
+        <a href="/products">همهٔ محصولات ←</a>
+      </header>
+
+      {error && (
+        <div className="cm-error" role="alert">
+          {error}
+          <button type="button" onClick={retry}>
+            تلاش دوباره
+          </button>
+        </div>
+      )}
+
+      {data === null ? (
+        !error && <p role="status">در حال دریافت دسته‌ها…</p>
+      ) : (
+        <div className="cb-home-grid">
+          {data.map((category) => (
+            <a
+              key={category.id}
+              href={categoryLink("", category)}
+            >
+              <span className="cb-home-icon">
+                <CategoryMark />
+              </span>
+
+              <strong>{category.name}</strong>
+
+              <small>
+                {category.children?.length
+                  ? `${category.children.length.toLocaleString(
+                      "fa-IR",
+                    )} زیر‌دسته`
+                  : "مشاهدهٔ محصولات"}
+              </small>
+            </a>
+          ))}
+
+          {!data.length && (
+            <p>هنوز دسته‌ای ثبت نشده است.</p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+export default function CategoryBrowser({ search }) {
+  const { data, error, retry } = useCategoryTree();
+
+  const params = new URLSearchParams(search);
+
+  const selectedIds = [
+    ...new Set(
+      [
+        params.get("category"),
+        ...(params.get("categories") || "").split(","),
+      ]
+        .filter((value) => /^[1-9][0-9]*$/.test(value || ""))
+        .map(Number),
+    ),
+  ];
+
+  const flat = flattenCategoryTree(data);
+  const byId = new Map(flat.map((row) => [row.id, row]));
+
+  const selected = selectedIds
+    .map((id) => byId.get(id))
+    .filter(Boolean);
+
+  const current = selected[selected.length - 1];
+  const children = current ? current.children || [] : data || [];
+
+  function remove(id) {
+    const remaining = selectedIds.filter((value) => value !== id);
+
+    return catalogHref(search, {
+      category: remaining.length === 1 ? remaining[0] : null,
+      categories:
+        remaining.length > 1 ? remaining.join(",") : null,
+      page: null,
+    });
+  }
+
+  if (error) {
+    return (
+      <div className="sf-inline-error" role="alert">
+        {error}
+        <button type="button" onClick={retry}>
+          تلاش دوباره
+        </button>
+      </div>
+    );
+  }
+
+  if (data === null) {
+    return <p role="status">در حال دریافت دسته‌ها…</p>;
+  }
+
+  return (
+    <section
+      className="sb-browser"
+      aria-label="مرور دسته‌بندی‌ها"
+    >
+      {current && (
+        <nav
+          className="sb-breadcrumb"
+          aria-label="مسیر دسته‌بندی"
+        >
+          <a href={categoryLink(search, null)}>
+            همهٔ دسته‌ها
+          </a>
+
+          {current.path.map((part, index) => (
+            <span key={part.id}>
+              <span aria-hidden="true"> / </span>
+
+              {index === current.path.length - 1 ? (
+                <strong>{part.name}</strong>
+              ) : (
+                <a href={categoryLink(search, part)}>
+                  {part.name}
+                </a>
+              )}
+            </span>
+          ))}
+        </nav>
+      )}
+
+      {selected.length > 1 && (
+        <div className="sb-selected">
+          {selected.map((category) => (
+            <a
+              key={category.id}
+              href={remove(category.id)}
+              aria-label={`حذف فیلتر ${category.name}`}
+            >
+              {category.name} ×
+            </a>
+          ))}
+        </div>
+      )}
+
+      {children.length > 0 && (
+        <>
+          <div className="sb-browser-heading">
+            <h2>
+              {current
+                ? `انتخاب از ${current.name}`
+                : "کدام دسته را می‌خواهی؟"}
+            </h2>
+
+            <span>
+              محصولات همهٔ این زیر‌دسته‌ها پایین صفحه
+              نمایش داده می‌شوند.
+            </span>
+          </div>
+
+          <div className="sb-category-cards">
+            {children.map((child) => (
+              <a
+                key={child.id}
+                href={categoryLink(search, child)}
+              >
+                <strong>{child.name}</strong>
+                <span>
+                  {child.children?.length
+                    ? "ادامهٔ انتخاب"
+                    : "مشاهدهٔ کالاها"}{" "}
+                  ←
+                </span>
+              </a>
+            ))}
+          </div>
+        </>
+      )}
+
+      {current && !children.length && (
+        <p className="sb-leaf-label">
+          محصولات «{current.name}»
+        </p>
+      )}
+    </section>
+  );
+}
+
+===== FILE: frontend/src/storefront/CategoryRoute.jsx =====
+import { useEffect, useState } from "react";
+
+export default function CategoryRoute({ renderCatalog }) {
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    const path = decodeURIComponent(window.location.pathname.slice("/products/category/".length)).replace(/\/+$/, "");
+    fetch(`/products/api/v1/category-resolve/?${new URLSearchParams({ path })}`, { signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) throw new Error(response.status === 404 ? "دسته‌بندی پیدا نشد." : "دریافت دسته‌بندی ممکن نشد.");
+        const data = await response.json();
+        if (!active) return;
+        document.title = `${data.name} | دیجی‌شاپ`;
+        let canonical = document.querySelector('link[rel="canonical"]');
+        if (!canonical) { canonical = document.createElement("link"); canonical.rel = "canonical"; document.head.append(canonical); }
+        canonical.href = new URL(data.url, window.location.origin).href;
+        const params = new URLSearchParams(window.location.search);
+        params.delete("categories"); params.set("category", data.id);
+        setResult(params.toString()); setError("");
+      }).catch(err => { if (active && err.name !== "AbortError") setError(err.message); });
+    return () => { active = false; controller.abort(); };
+  }, [attempt]);
+  if (error) return <div className="sf-message" role="alert"><p>{error}</p><button onClick={() => setAttempt(value => value + 1)}>تلاش دوباره</button><a href="/products">همهٔ محصولات</a></div>;
+  if (result === null) return <div className="sf-message" role="status">در حال دریافت دسته‌بندی…</div>;
+  return renderCatalog(result);
+}
+
+
+===== FILE: frontend/src/storefront/category-dropdown.css =====
+.sf-root .sf-category-nav {
+  position: relative;
+  overflow: visible;
+  z-index: 90;
+}
+
+.cd-menu {
+  position: static;
+  --cd-accent: var(--sf-blue, #315bea);
+  --cd-ink: var(--sf-ink, #17233d);
+  --cd-line: #e6ebf2;
+  color: var(--cd-ink);
+  direction: rtl;
+}
+
+.cd-menu * {
+  box-sizing: border-box;
+}
+
+.cd-menu button,
+.cd-menu input {
+  font: inherit;
+}
+
+.cd-menu button {
+  cursor: pointer;
+}
+
+.cd-menu button:focus-visible,
+.cd-menu a:focus-visible {
+  outline: 3px solid #a4bfff;
+  outline-offset: 3px;
+}
+
+/* دکمهٔ منو */
+
+.cd-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 0 0 22px;
+  border: 0;
+  border-left: 1px solid var(--cd-line);
+  background: transparent;
+  color: var(--cd-ink);
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
+.cd-trigger svg,
+.cd-symbol svg,
+.cd-roots svg {
+  flex-shrink: 0;
+}
+
+.cd-trigger.is-open {
+  color: var(--cd-accent);
+}
+
+.cd-chevron {
+  font-size: 18px;
+  transition: transform 0.16s;
+}
+
+.cd-trigger.is-open .cd-chevron {
+  transform: rotate(180deg);
+}
+
+/* پنل دقیقاً زیر نوار منو */
+
+.cd-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  height: min(620px, var(--cd-available, 70dvh));
+  max-height: var(--cd-available, 70dvh);
+  border: 1px solid #dfe6ef;
+  border-top: 3px solid var(--cd-accent);
+  border-radius: 0 0 20px 20px;
+  background: #fff;
+  box-shadow: 0 24px 55px #12264726;
+  overflow: auto;
+  white-space: normal;
+  animation: cd-appear 0.16s ease-out;
+}
+
+.cd-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 17px 22px 12px;
+  flex-shrink: 0;
+}
+
+.cd-heading strong {
+  display: block;
+  font-size: 15px;
+}
+
+.cd-heading small {
+  display: block;
+  margin-top: 2px;
+  color: #8a97a9;
+  font-size: 10px;
+}
+
+.cd-close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--cd-line);
+  border-radius: 11px;
+  background: #f7f9fc;
+  color: #63748b;
+  font-size: 24px !important;
+  line-height: 1;
+}
+
+.cd-close:hover {
+  background: #edf2fa;
+}
+
+/* جست‌وجو */
+
+.cd-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 22px 15px;
+  padding: 0 13px;
+  border: 1px solid #e3e9f1;
+  border-radius: 11px;
+  background: #f7f9fc;
+  color: #8391a5;
+  flex-shrink: 0;
+}
+
+.cd-search:focus-within {
+  border-color: #a6bdf8;
+  background: #fff;
+  box-shadow: 0 0 0 3px #315bea09;
+}
+
+.cd-menu .cd-search input {
+  width: 100%;
+  min-width: 0;
+  min-height: 43px;
+  padding: 8px 0;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent;
+  outline: none;
+  box-shadow: none;
+  color: var(--cd-ink);
+  font-size: 12px;
+}
+
+/* ستون دسته‌های اصلی */
+
+.cd-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+  border-top: 1px solid var(--cd-line);
+}
+
+.cd-roots {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px;
+  border-left: 1px solid var(--cd-line);
+  background: #f7f9fc;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.cd-roots > button {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #596a81;
+  text-align: right;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.cd-roots > button > span:first-of-type {
+  flex: 1;
+}
+
+.cd-roots > button.is-active,
+.cd-roots > button:hover {
+  background: #eaf0ff;
+  color: var(--cd-accent);
+}
+
+/* زیر‌دسته‌ها */
+
+.cd-content {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 24px;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.cd-path {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 16px;
+  color: #a3afbf;
+  font-size: 11px;
+}
+
+.cd-path > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.cd-path i {
+  font-style: normal;
+}
+
+.cd-path button {
+  padding: 3px 5px;
+  border: 0;
+  background: transparent;
+  color: #8a97a9;
+  font-size: 11px;
+}
+
+.cd-path [aria-current] {
+  color: var(--cd-ink);
+  font-weight: 700;
+}
+
+.cd-back {
+  display: none;
+}
+
+.sf-root .cd-panel .cd-view-all {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 15px 17px;
+  border: 1px solid #dfe8ff;
+  border-radius: 12px;
+  background: linear-gradient(110deg, #f8faff, #edf3ff);
+  color: var(--cd-accent);
+  font-weight: inherit;
+}
+
+.cd-view-all small {
+  display: block;
+  margin-bottom: 4px;
+  color: #8594ac;
+  font-size: 10px;
+}
+
+.cd-view-all strong {
+  font-size: 14px;
+}
+
+.cd-children {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cd-child {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--cd-line);
+  border-radius: 12px;
+  background: #fff;
+  transition: border-color 0.15s;
+}
+
+.cd-child:hover {
+  border-color: #c0d0f2;
+}
+
+.sf-root .cd-panel .cd-child > a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  color: var(--cd-ink);
+  font-size: 13px;
+  font-weight: inherit;
+}
+
+.cd-child > a > strong {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.cd-child > a > span:last-child {
+  color: #a7b4c6;
+}
+
+.cd-dot {
+  width: 5px;
+  height: 17px;
+  border-radius: 4px;
+  background: var(--cd-accent);
+  flex-shrink: 0;
+}
+
+.cd-preview {
+  display: grid;
+  gap: 3px;
+  margin: 10px 0;
+  padding-right: 12px;
+  border-right: 1px solid #edf0f5;
+}
+
+.sf-root .cd-panel .cd-preview > a {
+  display: block;
+  padding: 5px 0;
+  border: 0;
+  color: #7f8da2;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.sf-root .cd-panel .cd-preview > a:hover {
+  color: var(--cd-accent);
+}
+
+.cd-child > button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: #f5f8fd;
+  color: var(--cd-accent);
+  font-size: 11px;
+}
+
+.cd-child > small {
+  display: block;
+  margin-top: 7px;
+  color: #96a2b4;
+  font-size: 10px;
+}
+
+.cd-leaf {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 28px;
+  color: #8b9ab0;
+  text-align: center;
+}
+
+.cd-leaf > svg {
+  width: 34px;
+  height: 34px;
+  color: #a9bde3;
+}
+
+.cd-leaf strong {
+  color: #61738d;
+  font-size: 13px;
+}
+
+.cd-leaf p {
+  max-width: 320px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 2;
+}
+
+/* نتایج جست‌وجو */
+
+.cd-results {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 22px 18px;
+  overscroll-behavior: contain;
+}
+
+.cd-count {
+  color: #8b98ab;
+  font-size: 11px;
+}
+
+.sf-root .cd-panel .cd-result {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-top: 9px;
+  padding: 13px;
+  border: 1px solid var(--cd-line);
+  border-radius: 12px;
+  color: var(--cd-ink);
+  font-weight: inherit;
+}
+
+.cd-result:hover {
+  background: #f6f9ff;
+}
+
+.cd-result > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.cd-result strong {
+  font-size: 13px;
+}
+
+.cd-result small {
+  display: block;
+  margin-top: 4px;
+  color: #8a98ab;
+  font-size: 10px;
+  line-height: 1.9;
+  overflow-wrap: anywhere;
+}
+
+.cd-symbol {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: #eef3ff;
+  color: var(--cd-accent);
+  flex-shrink: 0;
+}
+
+/* پیام‌ها و پایین منو */
+
+.cd-empty {
+  padding: 22px;
+  color: #8795a9;
+  font-size: 12px;
+  line-height: 2;
+  text-align: center;
+}
+
+.cd-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 22px 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fff1ed;
+  color: #a64b36;
+  font-size: 12px;
+}
+
+.cd-error button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+}
+
+.cd-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 22px;
+  border-top: 1px solid var(--cd-line);
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.sf-root .cd-panel .cd-footer > a {
+  display: block;
+  padding: 0;
+  border: 0;
+  color: var(--cd-accent);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.cd-footer button {
+  padding: 7px;
+  border: 0;
+  background: transparent;
+  color: #8a97a9;
+  font-size: 10px;
+}
+
+@keyframes cd-appear {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* گوشی: همچنان زیر دکمه، با حرکت مرحله‌ای */
+
+@media (max-width: 760px) {
+  .cd-trigger {
+    min-height: 46px;
+    gap: 8px;
+    padding-left: 14px;
+    font-size: 11px !important;
+  }
+
+  .cd-panel {
+    height: min(570px, var(--cd-available, 65dvh));
+    border-radius: 0 0 16px 16px;
+  }
+
+  .cd-heading {
+    padding: 14px 14px 10px;
+  }
+
+  .cd-heading strong {
+    font-size: 14px;
+  }
+
+  .cd-search {
+    margin: 0 14px 12px;
+  }
+
+  .cd-layout {
+    display: block;
+    overflow: auto;
+  }
+
+  .cd-roots {
+    height: 100%;
+    padding: 6px 10px;
+    border: 0;
+    background: #fff;
+    gap: 0;
+  }
+
+  .cd-roots > button {
+    min-height: 54px;
+    border-radius: 0;
+    border-bottom: 1px solid #f0f3f7;
+    font-size: 13px;
+  }
+
+  .cd-panel:not(.has-path) .cd-roots > button.is-active {
+    background: transparent;
+    color: #596a81;
+  }
+
+  .cd-content {
+    display: none;
+    padding: 13px 14px;
+  }
+
+  .cd-panel.has-path .cd-roots {
+    display: none;
+  }
+
+  .cd-panel.has-path .cd-content {
+    display: block;
+  }
+
+  .cd-back {
+    display: block;
+    padding: 3px 0 13px;
+    border: 0;
+    background: transparent;
+    color: var(--cd-accent);
+    font-size: 12px;
+  }
+
+  .cd-path {
+    margin-bottom: 12px;
+  }
+
+  .cd-children {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+
+  .cd-child {
+    padding: 12px;
+  }
+
+  .cd-child > a {
+    min-height: 40px !important;
+  }
+
+  .cd-preview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 7px 0;
+  }
+
+  .cd-footer {
+    padding: 10px 14px;
+  }
+
+  .cd-results {
+    padding: 0 14px 14px;
+  }
+
+  .sf-root .cd-panel .cd-view-all {
+    padding: 13px;
+    margin-bottom: 13px;
+  }
+
+  .cd-view-all strong {
+    font-size: 13px;
+  }
+
+  .cd-leaf {
+    padding: 20px 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cd-panel {
+    animation: none;
+  }
+
+  .cd-chevron,
+  .cd-child {
+    transition: none;
+  }
+}
+
+===== FILE: frontend/src/storefront/category-menu.css =====
+.sf-nav.sf-category-nav {
+  position: relative;
+  overflow: visible;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.sf-category-menu {
+  position: static;
+}
+
+.sf-category-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 50px;
+  padding: 0 0 0 22px;
+  border: 0;
+  border-left: 1px solid var(--sf-line);
+  background: transparent;
+  color: var(--sf-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sf-category-trigger.is-open {
+  color: var(--sf-blue);
+}
+
+.sf-category-panel {
+  position: absolute;
+  top: 100%;
+  right: 20px;
+  left: 20px;
+  z-index: 60;
+  overflow: hidden;
+  border: 1px solid #e1e7f0;
+  border-radius: 0 0 16px 16px;
+  background: #fff;
+  box-shadow: 0 18px 40px #17233d24;
+  white-space: normal;
+}
+
+.sf-category-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--sf-line);
+  font-size: 12px;
+}
+
+.sf-category-panel-heading button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: #f2f5fa;
+  color: #64748b;
+  font-size: 23px;
+}
+
+.sf-category-menu-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  min-height: 320px;
+  max-height: min(560px, 70vh);
+}
+
+.sf-category-roots {
+  overflow-y: auto;
+  padding: 8px;
+  background: #f6f7fa;
+  border-left: 1px solid var(--sf-line);
+}
+
+.sf-category-roots button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #475569;
+  text-align: right;
+  font-size: 12px;
+}
+
+.sf-category-roots button:hover,
+.sf-category-roots button.is-active {
+  color: var(--sf-blue);
+  background: #fff;
+}
+
+.sf-category-menu-content {
+  min-width: 0;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.sf-category-nav .sf-category-view-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  color: var(--sf-blue);
+  font-size: 12px;
+}
+
+.sf-category-menu-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 26px;
+}
+
+.sf-category-menu-group h3 {
+  margin: 0 0 12px;
+  padding-right: 10px;
+  border-right: 3px solid var(--sf-blue);
+  font-size: 13px;
+}
+
+.sf-category-nav .sf-menu-category-link {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  color: #748099;
+  font-size: 12px;
+}
+
+.sf-category-nav .sf-menu-category-link:hover,
+.sf-category-menu-group h3 a:hover {
+  color: var(--sf-blue);
+}
+
+.sf-menu-deeper {
+  margin: 2px 0 8px;
+  padding-right: 12px;
+  border-right: 1px solid #e6ebf3;
+}
+
+.sf-menu-deeper summary {
+  padding: 4px 0;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.sf-category-menu-related {
+  margin-top: 26px;
+  padding-top: 18px;
+  border-top: 1px solid var(--sf-line);
+}
+
+.sf-category-menu-related h3 {
+  font-size: 12px;
+}
+
+.sf-category-menu-related p,
+.sf-category-menu-hint {
+  margin: 8px 0 12px;
+  color: #748099;
+  font-size: 11px;
+}
+
+.sf-category-menu-related > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sf-category-nav .sf-category-menu-related a {
+  padding: 6px 12px;
+  border: 1px solid #e1e7f0;
+  border-radius: 8px;
+  background: #f8faff;
+  font-size: 11px;
+}
+
+.sf-category-menu-message {
+  padding: 28px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.sf-category-menu-message button {
+  margin-top: 12px;
+  border: 0;
+  background: transparent;
+  color: var(--sf-blue);
+}
+
+@media (max-width: 760px) {
+  .sf-nav.sf-category-nav {
+    gap: 0 18px;
+  }
+
+  .sf-category-trigger {
+    min-height: 46px;
+    padding-left: 14px;
+    font-size: 11px;
+  }
+
+  .sf-category-panel {
+    right: 10px;
+    left: 10px;
+  }
+
+  .sf-category-menu-layout {
+    grid-template-columns: minmax(0, 1fr);
+    max-height: 65vh;
+    overflow-y: auto;
+  }
+
+  .sf-category-roots {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: visible;
+    border-left: 0;
+    border-bottom: 1px solid var(--sf-line);
+  }
+
+  .sf-category-roots button {
+    flex: 0 0 auto;
+    width: auto;
+    padding: 10px 12px;
+    white-space: nowrap;
+  }
+
+  .sf-category-menu-content {
+    overflow: visible;
+    padding: 18px;
+  }
+
+  .sf-category-menu-columns {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+}
+
+===== FILE: frontend/src/storefront/category-browser.css =====
+.cm,
+.cb-home,
+.sb-browser {
+  --cat-accent: var(--sf-blue, #315bea);
+  --cat-ink: var(--sf-ink, #17233d);
+  --cat-line: #e5eaf0;
+  color: var(--cat-ink);
+  direction: rtl;
+}
+
+.cm *,
+.cb-home *,
+.sb-browser * {
+  box-sizing: border-box;
+}
+
+.cm button,
+.cm input,
+.cb-home button {
+  font: inherit;
+}
+
+.cm button,
+.cb-home button {
+  cursor: pointer;
+}
+
+.cm button:focus-visible,
+.cm a:focus-visible,
+.cb-home a:focus-visible,
+.sb-browser a:focus-visible {
+  outline: 3px solid #97b3ff;
+  outline-offset: 3px;
+}
+
+.cb-mark {
+  display: block;
+  flex-shrink: 0;
+}
+
+/* دکمهٔ بازکردن منو */
+
+.cm-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  padding: 0 0 0 20px;
+  border: 0;
+  border-left: 1px solid var(--cat-line);
+  background: transparent;
+  color: var(--cat-ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* پنل دسکتاپ */
+
+.cm-panel {
+  position: fixed;
+  inset: 0;
+  width: min(1080px, calc(100vw - 64px));
+  height: min(720px, 85dvh);
+  max-width: none;
+  max-height: none;
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--cat-line);
+  border-radius: 22px;
+  background: #fff;
+  color: var(--cat-ink);
+  box-shadow: 0 28px 100px #10223a40;
+  overflow: hidden;
+  font: inherit;
+  direction: rtl;
+  white-space: normal;
+}
+
+.cm-panel[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.cm-panel::backdrop {
+  background: #10223a66;
+  backdrop-filter: blur(3px);
+}
+
+.cm-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 26px 14px;
+  flex-shrink: 0;
+}
+
+.cm-heading small {
+  color: #8290a4;
+  font-size: 11px;
+}
+
+.cm-heading h2 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.7;
+  font-weight: 800;
+}
+
+.cm-close {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--cat-line);
+  border-radius: 13px;
+  background: #f6f8fb;
+  color: #526078;
+  font-size: 26px !important;
+  flex-shrink: 0;
+}
+
+/* جست‌وجو */
+
+.cm-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 26px 18px;
+  padding: 0 15px;
+  border: 1px solid #dce4ee;
+  border-radius: 13px;
+  background: #f6f8fb;
+  flex-shrink: 0;
+}
+
+.cm-search > span {
+  color: #8693a6;
+  font-size: 26px;
+}
+
+.cm .cm-search input {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: 8px 0;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: 0;
+  color: var(--cat-ink);
+  font-size: 14px;
+}
+
+.cm-search:focus-within {
+  border-color: var(--cat-accent);
+  box-shadow: 0 0 0 3px #315bea0c;
+}
+
+/* ساختار منو */
+
+.cm-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+  border-top: 1px solid var(--cat-line);
+}
+
+.cm-roots {
+  overflow-y: auto;
+  min-height: 0;
+  padding: 12px;
+  background: #f8fafc;
+  border-left: 1px solid var(--cat-line);
+  overscroll-behavior: contain;
+}
+
+.cm-roots > button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 50px;
+  padding: 12px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  text-align: right;
+  color: #526078;
+  font-size: 13px;
+}
+
+.cm-roots > button > span:first-of-type {
+  flex: 1;
+}
+
+.cm-roots > button:hover,
+.cm-roots > button.is-active {
+  background: #eaf0ff;
+  color: var(--cat-accent);
+}
+
+.cm-content {
+  min-width: 0;
+  min-height: 0;
+  padding: 22px 26px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.cm-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 18px;
+  color: #9aa5b5;
+  font-size: 12px;
+}
+
+.cm-breadcrumb button {
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  color: #748099;
+}
+
+.cm-breadcrumb [aria-current] {
+  color: var(--cat-ink);
+  font-weight: 700;
+}
+
+.cm-back {
+  display: none;
+}
+
+.cm-view-all {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 18px 20px;
+  border: 1px solid #dce5ff;
+  border-radius: 14px;
+  background: #f2f6ff;
+  color: var(--cat-accent) !important;
+}
+
+.cm-view-all small {
+  display: block;
+  margin-bottom: 4px;
+  color: #7c8ca7;
+  font-size: 11px;
+}
+
+.cm-view-all strong {
+  font-size: 15px;
+}
+
+.cm-children {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cm-child {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--cat-line);
+  border-radius: 13px;
+  background: #fff;
+}
+
+.cm-child > a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  color: var(--cat-ink);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.cm-child > a:hover {
+  color: var(--cat-accent);
+}
+
+.cm-child button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 40px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: #f6f8fb;
+  color: #61738d;
+  font-size: 12px;
+}
+
+.cm-child button:hover {
+  background: #eaf0ff;
+  color: var(--cat-accent);
+}
+
+.cm-muted {
+  color: #8b98aa;
+  font-size: 11px;
+}
+
+/* حالت اولیه و نتیجهٔ جست‌وجو */
+
+.cm-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 280px;
+  padding: 24px;
+  text-align: center;
+}
+
+.cm-welcome > .cb-mark {
+  width: 48px;
+  height: 48px;
+  color: #9cafd3;
+}
+
+.cm-welcome h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.cm-welcome p {
+  max-width: 320px;
+  margin: 0;
+  color: #8290a4;
+  font-size: 13px;
+  line-height: 2;
+}
+
+.cm-welcome a {
+  margin-top: 8px;
+  color: var(--cat-accent);
+  font-size: 13px;
+}
+
+.cm-results {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 26px 20px;
+}
+
+.cm-result {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 9px;
+  padding: 14px;
+  border: 1px solid var(--cat-line);
+  border-radius: 12px;
+  color: var(--cat-ink);
+}
+
+.cm-result > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.cm-result strong {
+  font-size: 14px;
+}
+
+.cm-result small {
+  display: block;
+  margin-top: 4px;
+  color: #8290a4;
+  font-size: 11px;
+  line-height: 1.9;
+  overflow-wrap: anywhere;
+}
+
+.cm-result:hover {
+  border-color: #c4d3f8;
+  background: #f6f9ff;
+}
+
+.cm-empty {
+  padding: 24px;
+  color: #8290a4;
+  font-size: 13px;
+  line-height: 2;
+  text-align: center;
+}
+
+.cm-error {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 20px 12px;
+  padding: 12px 18px;
+  border-radius: 10px;
+  background: #fff1ed;
+  color: #a54933;
+  font-size: 12px;
+}
+
+.cm-error button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+.cm-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 26px;
+  border-top: 1px solid var(--cat-line);
+  background: #fff;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+.cm-footer > a {
+  color: var(--cat-accent);
+}
+
+.cm-footer button {
+  padding: 8px;
+  border: 0;
+  background: transparent;
+  color: #7f8ca0;
+}
+
+/* کارت‌های صفحهٔ اصلی */
+
+.cb-home {
+  margin: 30px 0 38px;
+}
+
+.cb-home > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.cb-home > header small {
+  color: #8c98aa;
+  font-size: 11px;
+}
+
+.cb-home h2 {
+  margin: 2px 0;
+  color: var(--cat-ink);
+  font-size: 22px;
+}
+
+.cb-home > header > a {
+  color: var(--cat-accent);
+  font-size: 12px;
+}
+
+.cb-home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 12px;
+}
+
+.cb-home-grid > a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 156px;
+  padding: 18px 10px;
+  border: 1px solid var(--cat-line);
+  border-radius: 17px;
+  background: #fff;
+  text-align: center;
+  transition: transform 0.15s, border-color 0.15s;
+}
+
+.cb-home-grid > a:hover {
+  border-color: #b9cbf2;
+  background: #fafcff;
+  transform: translateY(-3px);
+}
+
+.cb-home-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 4px;
+  border-radius: 16px;
+  background: #edf3ff;
+  color: var(--cat-accent);
+}
+
+.cb-home-grid strong {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.cb-home-grid small {
+  color: #8b98aa;
+  font-size: 10px;
+}
+
+/* مرور دسته‌ها داخل صفحهٔ محصولات */
+
+.sb-browser {
+  margin: 0 0 26px;
+  padding: 22px;
+  border: 1px solid var(--cat-line);
+  border-radius: 17px;
+  background: #fff;
+}
+
+.sb-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 18px;
+  color: #8490a2;
+  font-size: 12px;
+}
+
+.sb-breadcrumb a {
+  color: var(--cat-accent);
+}
+
+.sb-breadcrumb strong {
+  color: var(--cat-ink);
+}
+
+.sb-browser-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.sb-browser-heading h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.sb-browser-heading > span {
+  color: #8b98aa;
+  font-size: 11px;
+}
+
+.sb-category-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+.sb-category-cards > a {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--cat-line);
+  border-radius: 12px;
+  background: #fbfcff;
+}
+
+.sb-category-cards > a:hover {
+  border-color: #b9cbf2;
+  background: #f2f6ff;
+}
+
+.sb-category-cards strong {
+  font-size: 13px;
+}
+
+.sb-category-cards span,
+.sb-leaf-label {
+  color: #8290a4;
+  font-size: 12px;
+}
+
+.sb-selected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.sb-selected > a {
+  padding: 5px 10px;
+  border: 1px solid #dbe5ff;
+  border-radius: 20px;
+  background: #f0f5ff;
+  color: var(--cat-accent);
+  font-size: 11px;
+}
+
+/* جلوگیری از تداخل استایل لینک‌های هدر */
+
+.sf-root .cm-panel .cm-child > a,
+.sf-root .cm-panel .cm-footer > a,
+.sf-root .cm-panel .cm-welcome > a {
+  border: 0;
+  padding: 0;
+  font-weight: inherit;
+}
+
+.sf-root .cm-panel .cm-result {
+  border: 1px solid var(--cat-line);
+  padding: 14px;
+}
+
+/* گوشی */
+
+@media (max-width: 760px) {
+  .cm-trigger {
+    min-height: 46px;
+    padding-left: 14px;
+    font-size: 12px;
+  }
+
+  .cm-panel {
+    inset: auto 0 0;
+    width: 100%;
+    height: 88dvh;
+    margin: 0;
+    border: 0;
+    border-radius: 22px 22px 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .cm-heading {
+    padding: 20px 18px 12px;
+  }
+
+  .cm-heading h2 {
+    font-size: 19px;
+  }
+
+  .cm-search {
+    margin: 0 18px 14px;
+  }
+
+  .cm-layout {
+    display: block;
+    overflow: auto;
+  }
+
+  .cm-roots {
+    height: 100%;
+    border: 0;
+    padding: 8px 12px;
+    background: #fff;
+  }
+
+  .cm-roots > button {
+    min-height: 60px;
+    padding: 15px 12px;
+    border-bottom: 1px solid #f0f3f7;
+    border-radius: 0;
+    font-size: 14px;
+  }
+
+  .cm-content {
+    display: none;
+    padding: 14px 18px;
+  }
+
+  .cm-panel.has-path .cm-roots {
+    display: none;
+  }
+
+  .cm-panel.has-path .cm-content {
+    display: block;
+  }
+
+  .cm-back {
+    display: block;
+    padding: 6px 0 16px;
+    border: 0;
+    background: transparent;
+    color: var(--cat-accent);
+    font-size: 12px;
+  }
+
+  .cm-breadcrumb {
+    margin-bottom: 8px;
+    font-size: 11px;
+  }
+
+  .cm-view-all {
+    padding: 16px;
+  }
+
+  .cm-view-all strong {
+    font-size: 14px;
+  }
+
+  .cm-children {
+    grid-template-columns: 1fr;
+  }
+
+  .cm-child {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+  }
+
+  .cm-child > a {
+    flex: 1;
+    min-width: 0;
+    min-height: 46px;
+  }
+
+  .cm-child button {
+    width: auto;
+    min-width: 95px;
+    margin: 0;
+    padding: 8px;
+    gap: 12px;
+  }
+
+  .cm-child > .cm-muted {
+    display: none;
+  }
+
+  .cm-footer {
+    padding: 12px 18px;
+  }
+
+  .cm-results {
+    padding: 0 18px 18px;
+  }
+
+  .cb-home {
+    margin: 24px 0 30px;
+  }
+
+  .cb-home h2 {
+    font-size: 19px;
+  }
+
+  .cb-home-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .cb-home-grid > a {
+    min-height: 132px;
+    padding: 14px 6px;
+    border-radius: 13px;
+  }
+
+  .cb-home-grid strong {
+    font-size: 11px;
+  }
+
+  .cb-home-grid small {
+    font-size: 9px;
+  }
+
+  .cb-home-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 13px;
+  }
+
+  .sb-browser {
+    padding: 16px;
+  }
+
+  .sb-category-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .sb-category-cards > a {
+    padding: 14px;
+  }
+
+  .sb-browser-heading > span {
+    line-height: 1.9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cb-home-grid > a {
+    transition: none;
+  }
+}
+
+===== FILE: frontend/src/storefront/storefront.css =====
+.sf-root{--sf-blue:#315bea;--sf-ink:#17233d;--sf-muted:#748099;--sf-line:#e7ebf2;color:var(--sf-ink);background:#fff;font-family:Tahoma,Arial,sans-serif;font-size:14px;line-height:1.8;min-height:100vh;isolation:isolate}
+.sf-root *{box-sizing:border-box}.sf-root a{color:inherit;text-decoration:none}.sf-root button,.sf-root input,.sf-root select{font:inherit}.sf-root button,.sf-root a{-webkit-tap-highlight-color:transparent}.sf-root button{cursor:pointer}.sf-root button:disabled{cursor:not-allowed}.sf-root :focus-visible{outline:3px solid #e7a533;outline-offset:4px}.sf-root h1,.sf-root h2,.sf-root h3,.sf-root p{margin:0}.sf-root svg{flex-shrink:0}.sf-container{max-width:1280px;margin:0 auto;padding:0 36px}.sf-skip{position:fixed;top:-100px;right:20px;padding:12px;background:#fff;z-index:99}.sf-skip:focus{top:10px}
+.sf-announcement{text-align:center;background:#172643;color:#fff;padding:8px 20px;font-size:11px;letter-spacing:.1px}.sf-announcement span{opacity:.6;margin-right:20px}.sf-header{background:#fff;border-bottom:1px solid var(--sf-line)}.sf-header-main{display:flex;align-items:center;gap:44px;min-height:110px}.sf-brand{display:flex;align-items:center;gap:11px;font-size:25px;font-weight:900;white-space:nowrap;line-height:1.5}.sf-brand small{display:block;font-family:Arial,sans-serif;letter-spacing:4px;font-size:9px;color:#8791a4;font-weight:500}.sf-brand-symbol{position:relative;display:grid;place-items:center;width:45px;height:49px;background:var(--sf-blue);border-radius:14px;color:#fff;font:700 30px Arial}.sf-brand-symbol span{position:absolute;width:10px;height:10px;background:#92d8d0;border:2px solid #fff;border-radius:50%;bottom:-3px;left:-3px}.sf-search{display:flex;align-items:center;gap:12px;background:#f4f6fa;border:1px solid transparent;border-radius:12px;padding:9px 15px;flex:1;max-width:580px;margin-left:auto;color:#8993a7}.sf-search:focus-within{border-color:var(--sf-blue)}.sf-root .sf-search input{border:0!important;box-shadow:none;background:transparent;outline:none;min-width:0;flex:1;padding:5px;color:var(--sf-ink);width:auto}.sf-search button{background:none;border:0;border-right:1px solid #dce1eb;padding-right:15px;color:var(--sf-blue);font-size:12px}.sf-account{display:flex;align-items:center;gap:10px;font-size:12px;white-space:nowrap}.sf-nav{display:flex;gap:30px;align-items:center;min-height:52px;font-size:12px}.sf-nav a{display:flex;gap:9px;align-items:center}.sf-nav a:first-child{font-weight:700;padding-left:25px;border-left:1px solid var(--sf-line)}.sf-nav>span{margin-right:auto;font-size:11px;color:#8893a8}.sf-nav a:hover,.sf-footer a:hover{color:var(--sf-blue)}
+.sf-hero{display:grid;grid-template-columns:1.05fr 1fr;min-height:440px;background:#eef3fb;border-radius:24px;margin-top:28px;overflow:hidden;position:relative}.sf-hero-copy{padding:56px 48px;position:relative;z-index:2}.sf-kicker{font-size:11px;color:#52708d;display:flex;align-items:center;gap:8px}.sf-kicker>span{width:7px;height:7px;border-radius:50%;background:#608e91}.sf-hero h1{font-size:38px;line-height:1.75;letter-spacing:-1.5px;margin-top:14px;font-weight:800}.sf-hero h1 em{font-style:normal;color:var(--sf-blue)}.sf-hero p{font-size:12px;color:#738098;max-width:340px;line-height:2.2;margin:15px 0 25px}.sf-button{display:inline-flex;align-items:center;justify-content:center;gap:15px;background:var(--sf-blue);color:#fff!important;border:0;border-radius:10px;padding:12px 23px;font-size:12px;font-weight:700;min-height:45px}.sf-button:hover{background:#2449d2}.sf-button:disabled{background:#e4e9f2;color:#7b879c!important}.sf-hero-meta{display:flex;align-items:center;gap:12px;color:#8390a4;font-size:10px;margin-top:25px}.sf-hero-meta i{height:3px;width:3px;background:#aab4c3;border-radius:50%}.sf-hero-art{position:relative;min-height:430px;direction:ltr;overflow:hidden;background:radial-gradient(ellipse at 46% 50%,#d4e1fa 0%,transparent 65%)}.sf-orbit{position:absolute;border:1px solid #cddaf1;border-radius:50%;width:370px;height:370px;left:55%;top:50%;transform:translate(-50%,-50%)}.sf-orbit-two{width:450px;height:450px;opacity:.6}.sf-phone{position:absolute;width:156px;height:305px;border-radius:28px;box-shadow:15px 24px 32px #22385726}.sf-phone-back{top:65px;left:95px;transform:rotate(-17deg);background:linear-gradient(120deg,#91b9b7,#c4e0da 50%,#749f9e);border:3px solid #accfcd}.sf-camera{position:absolute;top:14px;left:10px;display:block;width:65px;height:69px;background:#a0c5c1;border:1px solid #7da6a3;border-radius:17px}.sf-camera i{position:absolute;width:24px;height:24px;border:3px solid #557976;background:radial-gradient(circle,#3d5171,#101c24 55%,#6e9091 60%);border-radius:50%;top:7px;left:6px}.sf-camera i:nth-child(2){top:35px}.sf-camera i:nth-child(3){left:34px;top:20px}.sf-phone-logo{position:absolute;top:155px;left:65px;font:700 34px Arial;color:#65918e}.sf-phone-front{top:75px;left:220px;transform:rotate(13deg);background:#1e2634;border:3px solid #7d8494;padding:5px}.sf-phone-screen{border-radius:21px;background:radial-gradient(ellipse at 20% 70%,#bdc6ff 0,transparent 55%),linear-gradient(145deg,#6972dc,#202f76 60%,#759cd2);height:100%;overflow:hidden;position:relative;color:#fff}.sf-phone-screen>i{position:absolute;top:6px;left:42px;background:#172137;border-radius:10px;width:55px;height:15px}.sf-screen-time{display:block;text-align:center;font:500 34px Arial;margin-top:42px;opacity:.9}.sf-screen-caption{position:absolute;left:17px;top:137px;font:900 27px/1.05 Arial;letter-spacing:-1px;z-index:1}.sf-phone-screen>b{position:absolute;width:190px;height:190px;border:1px solid #c5cfff90;border-radius:50%;top:160px;left:12px;box-shadow:0 0 0 20px #ffffff09,0 0 0 40px #ffffff08}.sf-art-star{position:absolute;left:100px;top:28px;font-size:32px;color:#91b4c8}.sf-art-chip{position:absolute;left:45px;bottom:54px;display:flex;align-items:center;gap:9px;padding:12px 16px;background:#ffffffdd;box-shadow:0 8px 30px #2645700c;backdrop-filter:blur(6px);border:1px solid #fff;border-radius:12px;font-size:11px;direction:rtl;transform:rotate(-5deg)}.sf-art-chip svg{color:#428b83;background:#e1f2ec;border-radius:50%;padding:2px}.sf-art-label{position:absolute;bottom:25px;right:30px;font:9px/1.7 Arial;letter-spacing:1.5px;color:#8294b3}.sf-art-label b{font-weight:500;font-size:7px}
+.sf-section-title{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:25px}.sf-overline{display:block;font-size:10px;color:#8490a5;margin-bottom:6px}.sf-section-title h1,.sf-section-title h2{font-size:22px;letter-spacing:-.6px;line-height:1.8}.sf-section-title>a{display:flex;align-items:center;gap:10px;color:var(--sf-blue);font-size:11px;white-space:nowrap}.sf-category-section{padding-top:45px}.sf-categories{display:flex;gap:16px;overflow-x:auto;padding:4px 2px 12px}.sf-category{min-width:122px;flex:1;text-align:center;padding:19px 12px;border:1px solid var(--sf-line);border-radius:16px;font-size:12px}.sf-category>span{display:grid;place-items:center;width:54px;height:54px;border-radius:17px;background:#f0f3fa;color:#697c9c;margin:0 auto 12px}.sf-category b{font-weight:500}.sf-category-all{background:#f5f7ff;border-color:#e1e7ff}.sf-category-all>span{background:#e5eaff;color:var(--sf-blue)}.sf-category-0>span{background:#eaf3ee;color:#6c9281}.sf-category-1>span{background:#fff1e7;color:#be9371}.sf-category-2>span{background:#efebf7;color:#9686b6}.sf-category:hover{border-color:#a4b6f7;transform:translateY(-2px)}.sf-catalog{padding-top:42px;padding-bottom:40px}.sf-products{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}.sf-product-card{border:1px solid var(--sf-line);border-radius:17px;overflow:hidden;background:#fff;transition:box-shadow .2s,transform .2s}.sf-product-card:hover{transform:translateY(-4px);box-shadow:0 14px 34px #1b325b0c}.sf-product-link{display:block;height:100%}.sf-product-image{height:230px;background:#f8f9fc;position:relative;padding:30px;display:flex;align-items:center;justify-content:center}.sf-product-image img{width:100%;height:100%;object-fit:contain;mix-blend-mode:multiply}.sf-stock{position:absolute;top:12px;right:12px;font-size:9px;background:#fff;color:#398774;border:1px solid #e2eee9;padding:2px 9px;border-radius:6px;z-index:1}.sf-unavailable{color:#8c93a2;border-color:#e5e8ee}.sf-product-info{padding:20px}.sf-product-brand{font-size:10px;color:#9aa3b2}.sf-product-info h3{font-size:13px;line-height:1.9;margin-top:6px;min-height:49px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.sf-product-info p{font-size:10px;color:#8c96a7;margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sf-product-bottom{display:flex;align-items:center;justify-content:space-between;border-top:1px solid #f0f2f6;padding-top:15px;margin-top:17px;gap:7px}.sf-product-bottom strong{font-size:12px}.sf-card-arrow{background:#eef2fd;color:var(--sf-blue);width:30px;height:30px;display:grid;place-items:center;border-radius:9px;flex-shrink:0}.sf-no-image{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#afbacb;font-size:10px;height:100%;min-height:90px}.sf-skeleton{border:1px solid var(--sf-line);padding:15px;border-radius:16px;animation:sf-pulse 1.5s infinite}.sf-skeleton span{height:220px;background:#f0f3f8;display:block;border-radius:12px}.sf-skeleton i{display:block;background:#f0f3f8;height:15px;margin-top:20px;border-radius:6px}.sf-skeleton i:last-child{width:60%;margin-bottom:15px}@keyframes sf-pulse{50%{opacity:.4}}.sf-message{text-align:center;padding:65px 25px;background:#f8faff;border:1px solid var(--sf-line);border-radius:18px;margin:25px 0;overflow-wrap:anywhere}.sf-message h2,.sf-message h1{font-size:21px;margin:10px 0}.sf-message p{color:#7c879a;margin:12px 0 22px}.sf-muted{font-size:12px;color:var(--sf-muted)}.sf-inline-error{padding:12px 0;color:#94594c;font-size:12px}.sf-inline-error button{background:none;color:var(--sf-blue);border:0;text-decoration:underline}
+.sf-filters{display:flex;gap:12px;align-items:end;flex-wrap:wrap;background:#f7f9fc;padding:20px;border:1px solid var(--sf-line);border-radius:14px;margin-bottom:25px}.sf-filters label{font-size:10px;color:#6b7890;flex:1 1 110px;min-width:0}.sf-root .sf-filters input:not([type=checkbox]),.sf-root .sf-filters select{display:block;width:100%;padding:9px 10px;margin-top:6px;background:#fff;border:1px solid #dfe5ef;border-radius:7px;height:42px;color:var(--sf-ink);font-size:12px;box-shadow:none}.sf-filters .sf-checkbox{display:flex;align-items:center;gap:6px;flex:0 0 auto;height:42px;color:var(--sf-ink);font-size:11px}.sf-root .sf-checkbox input{width:16px;height:16px;accent-color:var(--sf-blue);margin:0}.sf-filters .sf-button{min-height:42px;padding:8px 14px}.sf-reset{font-size:10px;align-self:center;color:#8c96a9!important}.sf-filter-toggle{display:none}.sf-search-result{margin-bottom:20px!important;font-size:12px}.sf-pagination{display:flex;align-items:center;justify-content:center;gap:25px;margin-top:32px;font-size:12px}.sf-pagination a{padding:8px 16px;border:1px solid var(--sf-line);border-radius:8px}.sf-pagination span{color:#b2bbc9}.sf-pagination b{font-weight:500}.sf-bottom-banner{display:flex;justify-content:space-between;align-items:center;gap:25px;background:#f0f4fa;border-radius:18px;padding:35px 40px;margin:5px 0 60px}.sf-bottom-banner h2{font-size:21px}.sf-bottom-banner p{font-size:11px;color:#8490a4;margin-top:8px}.sf-bottom-banner>a{display:flex;align-items:center;gap:16px;font-size:12px;color:var(--sf-blue);white-space:nowrap}.sf-footer{background:#f8f9fc;border-top:1px solid var(--sf-line);padding:40px 0 25px;margin-top:20px}.sf-footer>.sf-container{display:flex;align-items:center;justify-content:space-between;gap:30px;flex-wrap:wrap}.sf-footer-brand{font-size:24px;font-weight:900}.sf-footer-brand span{color:var(--sf-blue)}.sf-footer p{color:#8b96a8;font-size:11px;margin-top:7px}.sf-footer nav{display:flex;gap:24px;font-size:11px;color:#65738b}.sf-footer small{width:100%;font-size:10px;color:#9aa4b4;border-top:1px solid var(--sf-line);padding-top:20px;margin-top:5px}
+.sf-breadcrumb{display:flex;align-items:center;flex-wrap:wrap;gap:12px;font-size:11px;color:#8a95a6;padding:25px 0}.sf-breadcrumb a{color:#52688b}.sf-detail{display:grid;grid-template-columns:1fr 1fr;gap:65px;padding:20px 0 50px;align-items:start}.sf-main-image{background:#f7f9fc;border:1px solid var(--sf-line);border-radius:22px;height:460px;padding:40px;display:flex;align-items:center;justify-content:center}.sf-main-image img{width:100%;height:100%;object-fit:contain;mix-blend-mode:multiply}.sf-thumbnails{display:flex;gap:12px;margin-top:15px;overflow-x:auto;padding:4px}.sf-thumbnails button{width:75px;height:75px;flex-shrink:0;background:#fff;border:1px solid var(--sf-line);border-radius:12px;padding:8px}.sf-thumbnails button.is-active{border:2px solid var(--sf-blue)}.sf-thumbnails img{width:100%;height:100%;object-fit:contain}.sf-thumbnails .sf-no-image span{display:none}.sf-thumbnails .sf-no-image{min-height:0}.sf-gallery-caption{font-size:12px;color:#8b95a7;margin-top:15px!important;white-space:pre-wrap}.sf-detail-copy{padding-top:12px;min-width:0}.sf-detail-copy h1{font-size:29px;line-height:1.8;margin:8px 0 14px}.sf-detail-intro{font-size:13px;line-height:2.1;color:#7f8a9d}.sf-availability{display:flex;align-items:center;gap:7px;color:#468a76;font-size:11px;margin:20px 0}.sf-availability>span{width:6px;height:6px;border-radius:50%;background:currentColor}.sf-availability-off{color:#a17c65}.sf-variants{border:0;padding:15px 0 0;margin:0}.sf-variants legend{font-size:12px;font-weight:700}.sf-variants>div{display:flex;gap:10px;flex-wrap:wrap}.sf-variants button{border:1px solid #dfe5ef;background:#fff;border-radius:10px;padding:10px 14px;text-align:right;color:var(--sf-ink);display:flex;flex-direction:column;gap:4px}.sf-variants button b{font-size:12px;font-weight:500}.sf-variants button span{font-size:10px;color:#8b96a8}.sf-variants button.is-active{background:#f2f5ff;border-color:var(--sf-blue);box-shadow:inset 0 0 0 1px var(--sf-blue)}.sf-purchase{display:flex;flex-direction:column;background:#f7f9fc;border:1px solid var(--sf-line);border-radius:15px;padding:24px;margin-top:25px}.sf-purchase>span{font-size:11px;color:#8c96a7}.sf-purchase>strong{font-size:24px;margin:8px 0 14px}.sf-purchase small{font-size:10px;color:#9aa4b4;margin-bottom:15px}.sf-purchase p{font-size:10px;color:#8c96a7;margin-top:12px}.sf-detail-sections{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-bottom:55px}.sf-detail-sections section{border:1px solid var(--sf-line);border-radius:16px;padding:25px;min-width:0}.sf-detail-sections h2{font-size:17px;margin-bottom:20px}.sf-detail-sections p{white-space:pre-wrap;overflow-wrap:anywhere;color:#7c889e;font-size:13px;line-height:2.3}.sf-detail-sections dl{margin:0}.sf-detail-sections dl>div{display:flex;gap:20px;padding:13px 0;border-bottom:1px solid var(--sf-line);font-size:12px}.sf-detail-sections dt{flex:0 0 35%;color:#8c96a8}.sf-detail-sections dd{margin:0;overflow-wrap:anywhere}
+@media(min-width:1500px){.sf-container{max-width:1390px}.sf-hero-copy{padding:60px}.sf-hero-art{min-height:460px}.sf-phone-back{left:135px}.sf-phone-front{left:260px}}
+@media(max-width:1050px){.sf-header-main{gap:25px}.sf-products{grid-template-columns:repeat(3,minmax(0,1fr))}.sf-hero h1{font-size:30px}.sf-hero-copy{padding:45px 30px}.sf-phone-back{left:45px}.sf-phone-front{left:155px}.sf-art-chip{left:15px}.sf-art-label{display:none}.sf-detail{gap:30px}.sf-main-image{height:380px}.sf-detail-copy h1{font-size:24px}}
+@media(max-width:760px){.sf-container{padding:0 20px}.sf-announcement{font-size:10px}.sf-announcement span{display:none}.sf-header-main{min-height:125px;flex-wrap:wrap;padding-top:18px;padding-bottom:16px;gap:15px}.sf-brand{font-size:21px}.sf-brand-symbol{width:37px;height:41px;font-size:25px}.sf-account{margin-right:auto;font-size:11px}.sf-search{order:3;flex:1 1 100%;max-width:none;padding:7px 12px;margin:0}.sf-nav{gap:22px;overflow-x:auto;white-space:nowrap;font-size:10px;min-height:47px}.sf-nav>span{display:none}.sf-nav a:first-child{padding-left:18px}.sf-hero{margin-top:20px;grid-template-columns:1fr;min-height:0;border-radius:20px}.sf-hero-copy{padding:30px 25px 5px}.sf-hero h1{font-size:30px;margin-top:10px}.sf-hero p{max-width:330px;font-size:11px;margin:10px 0 18px}.sf-hero-meta{margin-top:15px}.sf-hero-art{min-height:320px;max-width:440px;width:100%;margin:auto}.sf-phone{width:128px;height:250px;border-radius:24px}.sf-phone-back{top:35px;left:80px}.sf-phone-front{top:40px;left:190px}.sf-phone-screen{border-radius:17px}.sf-phone-screen>i{left:32px;width:48px}.sf-screen-time{font-size:29px;margin-top:35px}.sf-screen-caption{top:110px;font-size:24px}.sf-art-chip{left:35px;bottom:25px}.sf-art-star{left:60px;top:15px}.sf-orbit{width:280px;height:280px}.sf-orbit-two{width:350px;height:350px}.sf-category-section{padding-top:30px}.sf-section-title h1,.sf-section-title h2{font-size:19px}.sf-section-title{margin-bottom:20px}.sf-section-title>a{font-size:10px;gap:6px}.sf-categories{gap:10px}.sf-category{min-width:103px;padding:15px 10px;font-size:11px}.sf-category>span{height:46px;width:46px}.sf-catalog{padding-top:30px}.sf-products{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.sf-product-image{height:190px;padding:28px 18px}.sf-product-info{padding:14px}.sf-product-info h3{font-size:12px;min-height:46px}.sf-product-info p{font-size:9px}.sf-product-bottom strong{font-size:11px}.sf-card-arrow{width:25px;height:25px}.sf-product-bottom{margin-top:12px;padding-top:12px}.sf-bottom-banner{padding:25px;flex-direction:column;align-items:start;margin-bottom:40px;gap:18px}.sf-bottom-banner h2{font-size:18px}.sf-footer>.sf-container{gap:25px}.sf-footer nav{gap:20px}.sf-filter-toggle{display:block;margin-bottom:16px;background:#f2f5fc;border:1px solid #dfe5f2;padding:9px 15px;border-radius:8px;font-size:12px;color:var(--sf-blue)}.sf-filters{display:none}.sf-filters-open{display:flex;padding:16px}.sf-filters label{flex-basis:40%}.sf-detail{grid-template-columns:1fr;padding-top:0;gap:20px}.sf-main-image{height:360px}.sf-detail-copy h1{font-size:24px}.sf-detail-sections{grid-template-columns:1fr;gap:20px}.sf-skeleton span{height:180px}.sf-breadcrumb{font-size:10px;gap:8px}.sf-pagination{gap:12px;font-size:11px}.sf-pagination a{padding:8px 10px}}
+@media(max-width:380px){.sf-container{padding:0 14px}.sf-product-image{height:160px}.sf-product-info{padding:11px}.sf-product-bottom strong{font-size:10px}.sf-hero h1{font-size:26px}.sf-phone-back{left:50px}.sf-phone-front{left:155px}.sf-stock{top:8px;right:8px}}
+@media(prefers-reduced-motion:reduce){.sf-root *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+.sf-product-layout {
+  --purchase-top: 24px;
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-areas:
+    "detail purchase"
+    "sections purchase";
+  gap: 28px;
+  align-items: start;
+}
+
+.sf-product-layout > .sf-detail {
+  grid-area: detail;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.sf-product-layout > .sf-detail-sections {
+  grid-area: sections;
+  min-width: 0;
+}
+
+/* ستون در ارتفاع توضیحات هم ادامه دارد. */
+.sf-purchase-column {
+  grid-area: purchase;
+  align-self: stretch;
+  min-width: 0;
+}
+
+.sf-purchase-column .sf-purchase-sticky {
+  position: sticky;
+  top: var(--purchase-top);
+  margin-top: 0;
+  max-height: calc(100dvh - var(--purchase-top) - 24px);
+  overflow-y: auto;
+}
+
+/* توضیحات در ستون محتوای محصول زیر هم قرار می‌گیرند. */
+.sf-product-layout > .sf-detail-sections {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* در تبلت و موبایل کادر خرید روی محتوا قرار نمی‌گیرد. */
+@media (max-width: 1000px) {
+  .sf-product-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "detail"
+      "purchase"
+      "sections";
+    gap: 24px;
+  }
+
+  .sf-purchase-column .sf-purchase-sticky {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+}
+/* کادر خرید محصول */
+.sf-purchase-column .sf-purchase {
+  gap: 0;
+  padding: 24px;
+  border: 1px solid #dfe7e5;
+  border-radius: 18px;
+  background: #fff;
+  color: #233b36;
+  box-shadow: 0 8px 28px rgb(24 63 53 / 6%);
+  scrollbar-width: thin;
+}
+
+.sf-purchase-column .sf-purchase > span {
+  color: #71827c;
+  font-size: 12px;
+}
+
+.sf-purchase-column .sf-purchase > strong {
+  display: block;
+  margin: 12px 0 18px;
+  color: #203b32;
+  font-size: clamp(22px, 2vw, 28px);
+  font-weight: 700;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+}
+
+.sf-purchase-column .sf-purchase > small {
+  display: block;
+  margin-bottom: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #edf1ef;
+  color: #87958f;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+/* تعداد و دکمهٔ خرید */
+.sf-purchase-column .sf-add-cart form {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.sf-purchase-column .sf-add-cart form > label {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  color: #667c73;
+  font-size: 11px;
+}
+
+.sf-purchase-column .sf-add-cart input[type="number"] {
+  width: 100%;
+  height: 48px;
+  box-sizing: border-box;
+  padding: 8px;
+  border: 1px solid #d9e4df;
+  border-radius: 10px;
+  background: #f8fbf9;
+  color: #234c3d;
+  text-align: center;
+  font: inherit;
+  font-size: 15px;
+}
+
+.sf-purchase-column .sf-add-cart .sf-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  margin: 0;
+  padding: 10px 12px;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--store-primary, #176d60);
+  color: var(--store-button-text, #fff);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.7;
+  cursor: pointer;
+  transition: filter 150ms, box-shadow 150ms;
+}
+
+.sf-purchase-column .sf-add-cart .sf-button:hover:not(:disabled) {
+  filter: brightness(0.94);
+  box-shadow: 0 4px 12px rgb(24 63 53 / 12%);
+}
+
+.sf-purchase-column .sf-add-cart .sf-button:disabled {
+  background: #edf1ef;
+  color: #77857f;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.sf-purchase-column .sf-add-cart :focus-visible {
+  outline: 2px solid var(--store-primary, #176d60);
+  outline-offset: 3px;
+}
+
+/* توضیح پایین دکمه */
+.sf-purchase-column .sf-add-cart > p:last-child {
+  margin: 18px 0 0;
+  padding-top: 15px;
+  border-top: 1px solid #edf1ef;
+  color: #819087;
+  font-size: 10px;
+  line-height: 2;
+}
+
+@media (max-width: 650px) {
+  .sf-purchase-column .sf-purchase {
+    padding: 20px;
+    border-radius: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-purchase-column .sf-add-cart .sf-button {
+    transition: none;
+  }
+}
+/* چیدمان صفحهٔ محصول */
+.sf-product-layout {
+  --purchase-top: 24px;
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 310px;
+  grid-template-areas:
+    "detail purchase"
+    "sections purchase";
+  gap: 36px 28px;
+  align-items: start;
+  padding-block: 12px 48px;
+}
+
+.sf-product-layout > .sf-detail {
+  grid-area: detail;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 28px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.sf-product-layout .sf-gallery,
+.sf-product-layout .sf-detail-copy {
+  min-width: 0;
+}
+
+/* گالری */
+.sf-product-layout .sf-main-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: clamp(340px, 32vw, 460px);
+  padding: 20px;
+  box-sizing: border-box;
+  border: 1px solid #eef0f3;
+  border-radius: 20px;
+  background: #fafbfc;
+}
+
+.sf-product-layout .sf-main-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.sf-product-layout .sf-thumbnails {
+  display: flex;
+  gap: 10px;
+  padding-block: 14px;
+  overflow-x: auto;
+}
+
+.sf-product-layout .sf-thumbnails button {
+  flex: 0 0 64px;
+  width: 64px;
+  height: 70px;
+  padding: 6px;
+  border: 1px solid #e2e6ec;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.sf-product-layout .sf-thumbnails button.is-active {
+  border-color: var(--store-primary, #315bea);
+  box-shadow: 0 0 0 1px var(--store-primary, #315bea);
+}
+
+.sf-product-layout .sf-gallery-caption {
+  margin-top: 12px;
+  color: #7b8594;
+  font-size: 11px;
+  line-height: 2;
+}
+
+/* معرفی محصول */
+.sf-product-layout .sf-detail-copy {
+  padding-block: 8px;
+}
+
+.sf-product-layout .sf-overline {
+  display: block;
+  margin-bottom: 12px;
+  color: #697386;
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+.sf-product-layout .sf-detail-copy h1 {
+  margin: 0 0 18px;
+  color: #182230;
+  font-size: clamp(22px, 2vw, 29px);
+  font-weight: 700;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+
+.sf-product-layout .sf-detail-intro {
+  margin: 0 0 22px;
+  color: #596579;
+  font-size: 13px;
+  line-height: 2.2;
+}
+
+.sf-product-layout .sf-availability {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  background: #edf8f1;
+  color: #247347;
+  font-size: 11px;
+}
+
+.sf-product-layout .sf-availability-off {
+  background: #f2f3f5;
+  color: #707987;
+}
+
+/* انتخاب تنوع */
+.sf-product-layout .sf-variants {
+  margin: 26px 0 0;
+  padding: 20px 0 0;
+  border: 0;
+  border-top: 1px solid #e9edf2;
+}
+
+.sf-product-layout .sf-variants legend {
+  padding: 0 0 12px;
+  color: #253247;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sf-product-layout .sf-variants > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.sf-product-layout .sf-variants button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  width: 100%;
+  padding: 14px 16px 14px 42px;
+  border: 1px solid #dfe5ed;
+  border-radius: 10px;
+  background: #fff;
+  text-align: right;
+  cursor: pointer;
+}
+
+.sf-product-layout .sf-variants button b {
+  color: #273449;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sf-product-layout .sf-variants button span {
+  color: #66758a;
+  font-size: 11px;
+}
+
+.sf-product-layout .sf-variants button.is-active {
+  border-color: var(--store-primary, #315bea);
+  background: #f8faff;
+  box-shadow: inset 0 0 0 1px var(--store-primary, #315bea);
+}
+
+.sf-product-layout .sf-variants button.is-active::after {
+  content: "✓";
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--store-primary, #315bea);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* ستون خرید، در تمام ارتفاع توضیحات */
+.sf-purchase-column {
+  grid-area: purchase;
+  align-self: stretch;
+  min-width: 0;
+}
+
+.sf-purchase-column .sf-purchase-sticky {
+  position: sticky;
+  top: var(--purchase-top);
+  max-height: calc(100dvh - var(--purchase-top) - 24px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.sf-purchase-column .sf-purchase {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 24px;
+  border: 1px solid #e0e5ed;
+  border-radius: 16px;
+  background: #f8fafc;
+  color: #182230;
+  box-shadow: 0 8px 24px rgb(24 34 48 / 4%);
+}
+
+.sf-purchase-heading {
+  margin-bottom: 22px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #e3e8ef;
+}
+
+.sf-purchase-heading > span {
+  color: #778397;
+  font-size: 11px;
+}
+
+.sf-purchase-heading h2 {
+  margin: 9px 0;
+  color: #243247;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.9;
+}
+
+.sf-purchase-heading p {
+  margin: 0;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+.sf-purchase-column .sf-purchase > span {
+  color: #67758a;
+  font-size: 12px;
+}
+
+.sf-purchase-column .sf-purchase > strong {
+  margin: 10px 0 16px;
+  color: #162235;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.sf-purchase-column .sf-purchase > small {
+  margin-bottom: 22px;
+  color: #7b8798;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+/* کنترل خرید */
+.sf-purchase-column .sf-add-cart form {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr);
+  align-items: end;
+  gap: 10px;
+}
+
+.sf-purchase-column .sf-add-cart form > label {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  color: #637188;
+  font-size: 11px;
+}
+
+.sf-purchase-column .sf-add-cart input[type="number"] {
+  width: 100%;
+  height: 50px;
+  padding: 8px;
+  box-sizing: border-box;
+  border: 1px solid #d6deea;
+  border-radius: 9px;
+  background: #fff;
+  color: #243247;
+  text-align: center;
+  font: inherit;
+  font-size: 15px;
+}
+
+.sf-purchase-column .sf-add-cart .sf-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 50px;
+  margin: 0;
+  padding: 10px;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 9px;
+  background: var(--store-primary, #315bea);
+  color: var(--store-button-text, #fff);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.7;
+  cursor: pointer;
+}
+
+.sf-purchase-column .sf-add-cart .sf-button:hover:not(:disabled) {
+  filter: brightness(0.94);
+}
+
+.sf-purchase-column .sf-add-cart .sf-button:disabled {
+  background: #e5e9ef;
+  color: #7a8594;
+  cursor: not-allowed;
+}
+
+.sf-purchase-column .sf-add-cart > p:last-child {
+  margin: 18px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid #e3e8ef;
+  color: #778397;
+  font-size: 10px;
+  line-height: 2;
+}
+
+.sf-product-layout button:focus-visible,
+.sf-product-layout input:focus-visible {
+  outline: 2px solid var(--store-primary, #315bea);
+  outline-offset: 3px;
+}
+
+/* توضیحات و مشخصات */
+.sf-product-layout > .sf-detail-sections {
+  grid-area: sections;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  min-width: 0;
+  margin: 0;
+}
+
+.sf-product-layout .sf-detail-sections > section {
+  padding: 28px;
+  border: 1px solid #e5e9ef;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.sf-product-layout .sf-detail-sections h2 {
+  margin: 0 0 22px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #edf0f4;
+  color: #243247;
+  font-size: 18px;
+}
+
+.sf-product-layout .sf-detail-sections p {
+  color: #536176;
+  font-size: 14px;
+  line-height: 2.3;
+}
+
+/* تبلت و موبایل */
+@media (max-width: 1000px) {
+  .sf-product-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "detail"
+      "purchase"
+      "sections";
+    gap: 24px;
+  }
+
+  .sf-purchase-column .sf-purchase-sticky {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 650px) {
+  .sf-product-layout > .sf-detail {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .sf-product-layout .sf-main-image {
+    height: 340px;
+  }
+
+  .sf-product-layout .sf-detail-copy h1 {
+    font-size: 23px;
+  }
+
+  .sf-purchase-column .sf-purchase,
+  .sf-product-layout .sf-detail-sections > section {
+    padding: 20px;
+  }
+}
+
+===== FILE: frontend/src/storefront/store-api.js =====
+export const API_BASE = (import.meta.env?.VITE_STORE_API_BASE || '/products/api/v1').replace(/\/$/, '');
+export const PRICE_UNIT = import.meta.env?.VITE_STORE_PRICE_UNIT || 'تومان';
+
+export function number(value) {
+  return new Intl.NumberFormat('fa-IR').format(value);
+}
+
+export function money(value) {
+  if (value === null || value === undefined || value === '') return 'قیمت در دسترس نیست';
+  const amount = Number(value);
+  return Number.isFinite(amount) ? `${number(amount)} ${PRICE_UNIT}` : 'قیمت در دسترس نیست';
+}
+
+export function safeImage(value) {
+  if (typeof value !== 'string' || !value) return null;
+  try {
+    const url = new URL(value, window.location.origin);
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : null;
+  } catch { return null; }
+}
+
+export function cover(product) {
+  return safeImage(product.images?.find(image => image.is_primary)?.image)
+    || safeImage(product.images?.[0]?.image) || safeImage(product.image);
+}
+
+export function pageNumber(value) {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 1;
+}
+
+export function catalogHref(search, changes = {}) {
+  const params = new URLSearchParams(search);
+  for (const [key, value] of Object.entries(changes)) {
+    if (value === '' || value === null || value === undefined) params.delete(key);
+    else params.set(key, String(value));
+  }
+  const query = params.toString();
+  return `/products${query ? `?${query}` : ''}`;
+}
+
+export async function getStore(path, signal) {
+  const response = await fetch(`${API_BASE}/${path}`, {
+    headers: { Accept: 'application/json' },
+    credentials: 'omit',
+    signal,
+  });
+  const json = await response.json().catch(() => null);
+  if (!response.ok) {
+    const error = new Error(response.status === 404 ? 'محصول موردنظر پیدا نشد.'
+      : typeof json?.detail === 'string' ? json.detail
+      : json?.error?.message || `دریافت اطلاعات ناموفق بود (${response.status}).`);
+    error.status = response.status;
+    throw error;
+  }
+  if (json === null) throw new Error('پاسخ API معتبر نیست. تنظیمات پروکسی محصولات را بررسی کن.');
+  return json;
+}
+
+
+===== FILE: frontend/src/index.css =====
+:root {
+  font-family: Tahoma, Arial, sans-serif;
+  color: #243248;
+  background: #f4f7fb;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  cursor: pointer;
+}
+
+button {
+  color: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid #669af5;
+  outline-offset: 4px;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid #dce4ef;
+  border-radius: 12px;
+  padding: 10px 13px;
+  background: #fff;
+  color: #243248;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #3775e5;
+  outline: 3px solid #e5efff;
+}
+
+input[readonly] {
+  background: #f4f7fb;
+  color: #64748b;
+}
+
+textarea {
+  resize: vertical;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  font-size: clamp(24px, 3vw, 32px);
+  margin-bottom: 5px;
+  letter-spacing: -1px;
+}
+
+h2 {
+  font-size: 18px;
+  margin-bottom: 0;
+}
+
+h3 {
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+small {
+  font-size: 11px;
+}
+
+.app {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 245px;
+  flex-shrink: 0;
+  padding: 30px 19px 20px;
+  background: #101e34;
+  color: #c4cfdf;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: white;
+  font-size: 21px;
+  font-weight: bold;
+  margin-bottom: 42px;
+}
+
+.brand small {
+  display: block;
+  color: #8ca0be;
+  font-size: 8px;
+  letter-spacing: 1.5px;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 43px;
+  height: 43px;
+  border-radius: 14px;
+  color: white;
+  background: #3775e5;
+  font-family: Arial, sans-serif;
+}
+
+.nav-caption {
+  font-size: 11px;
+  color: #8195b4;
+  padding-inline: 12px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  text-align: right;
+  padding: 13px;
+  margin-bottom: 8px;
+  background: transparent;
+  color: #bdc9dc;
+  font-size: 13px;
+}
+
+.nav-item > span {
+  font-size: 22px;
+  width: 25px;
+  text-align: center;
+}
+
+.nav-item:hover {
+  background: #1c2d47;
+}
+
+.nav-item.active {
+  background: #2c64c7;
+  color: white;
+}
+
+.sidebar-note {
+  margin-top: auto;
+  padding: 20px 10px;
+  font-size: 12px;
+}
+
+.sidebar-note p {
+  color: #8ca0be;
+  margin: 8px 0 0;
+  font-size: 11px;
+}
+
+.live-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  background: #55d9bd;
+  border-radius: 50%;
+  margin-left: 7px;
+}
+
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border-top: 1px solid #29384e;
+  padding-top: 20px;
+  font-size: 12px;
+}
+
+.user-card small {
+  display: block;
+  color: #8ca0be;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  background: #2d405c;
+  border-radius: 12px;
+  color: #fff;
+}
+
+.main {
+  min-width: 0;
+  flex: 1;
+}
+
+.topbar {
+  min-height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 15px 34px;
+  background: white;
+  border-bottom: 1px solid #e7edf5;
+}
+
+.breadcrumb {
+  font-size: 12px;
+  color: #718096;
+}
+
+.role-switch {
+  display: flex;
+  background: #f0f4fa;
+  border-radius: 12px;
+  padding: 4px;
+}
+
+.role-switch button {
+  border: 0;
+  border-radius: 9px;
+  padding: 7px 13px;
+  background: transparent;
+  font-size: 11px;
+}
+
+.role-switch .selected {
+  background: white;
+  color: #245dcc;
+  box-shadow: 0 2px 8px #142c5510;
+}
+
+.content {
+  max-width: 1600px;
+  margin: auto;
+  padding: 25px 34px;
+}
+
+.demo-note {
+  padding: 11px 15px;
+  border: 1px solid #f1dfb3;
+  background: #fff9e9;
+  color: #805d20;
+  border-radius: 12px;
+  font-size: 11px;
+  margin-bottom: 24px;
+}
+
+.page-heading,
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.page-heading {
+  margin-bottom: 25px;
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: bold;
+  color: #3972ce;
+  margin-bottom: 4px;
+}
+
+.muted {
+  color: #718096;
+  font-size: 12px;
+  margin-bottom: 0;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 11px;
+  border: 1px solid transparent;
+  padding: 10px 17px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.button.primary {
+  background: #2d6cdf;
+  color: white;
+}
+
+.button.primary:hover {
+  background: #2056b8;
+}
+
+.button.ghost {
+  background: #f0f5ff;
+  color: #2d65c6;
+}
+
+.notice {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #e7f7ee;
+  color: #236747;
+  font-size: 12px;
+}
+
+.notice button {
+  background: transparent;
+  border: 0;
+  font-size: 23px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.stat-card {
+  background: #fff;
+  border: 1px solid #e6ecf4;
+  border-radius: 17px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stat-card > span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.stat-card > strong {
+  font-size: 31px;
+  line-height: 1.6;
+  color: #192c49;
+}
+
+.stat-card > small {
+  color: #8491a5;
+}
+
+.stat-card.accent {
+  background: #eaf1ff;
+  border-color: #dbe6fb;
+}
+
+.overview-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 25px;
+  background: linear-gradient(110deg, #e4eeff, #f0f6ff);
+  border: 1px solid #dae5f7;
+  border-radius: 20px;
+  padding: 26px;
+  margin-bottom: 25px;
+}
+
+.overview-banner h2 {
+  font-size: 21px;
+}
+
+.overview-banner p:not(.eyebrow) {
+  margin: 9px 0 17px;
+  color: #627591;
+  font-size: 12px;
+}
+
+.banner-art {
+  font-size: 70px;
+  padding-inline: 20px;
+}
+
+.orders-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.3fr);
+  align-items: start;
+  gap: 22px;
+}
+
+.card {
+  min-width: 0;
+  background: #fff;
+  padding: 23px;
+  border: 1px solid #e6ecf4;
+  border-radius: 19px;
+  box-shadow: 0 5px 20px #142c5503;
+}
+
+.section-heading {
+  margin-bottom: 22px;
+}
+
+.counter {
+  color: #7d8ba0;
+  font-size: 11px;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(125px, 0.7fr);
+  gap: 9px;
+  margin-bottom: 18px;
+}
+
+.filters input,
+.filters select {
+  font-size: 11px;
+}
+
+.order-list {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.order-card {
+  display: block;
+  width: 100%;
+  padding: 17px;
+  border: 1px solid #e4eaf3;
+  border-radius: 14px;
+  background: white;
+  text-align: right;
+}
+
+.order-card:hover {
+  border-color: #9bb9ec;
+}
+
+.order-card.is-selected {
+  border-color: #598ae3;
+  background: #f6f9ff;
+  box-shadow: inset -3px 0 #3775e5;
+}
+
+.order-card-top,
+.order-card-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.order-card-top > strong {
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+}
+
+.order-card p {
+  color: #65758c;
+  font-size: 12px;
+  margin: 12px 0;
+}
+
+.order-card-bottom {
+  font-size: 11px;
+}
+
+.order-card-bottom > span {
+  color: #8491a5;
+}
+
+.status {
+  display: inline-block;
+  font-size: 10px;
+  padding: 4px 9px;
+  border-radius: 7px;
+  white-space: nowrap;
+  font-weight: normal;
+}
+
+.status-confirmed {
+  background: #edf0f6;
+  color: #596b85;
+}
+
+.status-preparing {
+  background: #fff4d9;
+  color: #89601a;
+}
+
+.status-shipped {
+  background: #e9efff;
+  color: #365dbe;
+}
+
+.status-delivered {
+  background: #e3f6ee;
+  color: #247053;
+}
+
+.timeline {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  list-style: none;
+  padding: 0;
+  margin: 25px 0;
+}
+
+.timeline li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  color: #8b98aa;
+  font-size: 10px;
+  text-align: center;
+  padding-inline: 3px;
+}
+
+.timeline li::before {
+  content: "";
+  position: absolute;
+  height: 2px;
+  background: #e6ecf4;
+  top: 15px;
+  right: 50%;
+  width: 100%;
+}
+
+.timeline li:last-child::before {
+  display: none;
+}
+
+.timeline li.done::before {
+  background: #a8c4f3;
+}
+
+.step-dot {
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #edf1f7;
+  border: 3px solid white;
+}
+
+.done .step-dot {
+  background: #3775e5;
+  color: white;
+}
+
+.timeline .done {
+  color: #2c5ba9;
+}
+
+.delivery-banner {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  border: 1px solid #dce8fa;
+  background: #f2f7ff;
+  border-radius: 13px;
+  padding: 15px;
+  font-size: 12px;
+}
+
+.delivery-banner > span {
+  font-size: 28px;
+}
+
+.delivery-banner p {
+  font-size: 11px;
+  color: #637a9c;
+  margin: 5px 0 0;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin: 24px 0;
+  font-size: 12px;
+}
+
+.details-grid dt {
+  color: #8491a5;
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.details-grid dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.address-box {
+  border-top: 1px solid #edf1f6;
+  border-bottom: 1px solid #edf1f6;
+  padding: 18px 0;
+  margin-bottom: 20px;
+}
+
+.address-box p {
+  margin: 0;
+  font-size: 12px;
+  color: #677890;
+}
+
+.order-item {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding-block: 14px;
+  border-bottom: 1px solid #edf1f6;
+  font-size: 11px;
+  flex-wrap: wrap;
+}
+
+.order-item p {
+  color: #8390a4;
+  font-size: 10px;
+  margin: 3px 0 0;
+}
+
+.product-art {
+  display: grid;
+  place-items: center;
+  width: 49px;
+  height: 49px;
+  flex-shrink: 0;
+  background: #f0f4fa;
+  border-radius: 13px;
+  font-size: 27px;
+}
+
+.grow {
+  flex: 1;
+}
+
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  padding-top: 19px;
+  font-size: 13px;
+}
+
+.total-row strong {
+  color: #2d65c6;
+}
+
+.shipment-form {
+  display: grid;
+  gap: 13px;
+  margin-top: 26px;
+  padding-top: 23px;
+  border-top: 1px solid #e5ecf5;
+}
+
+.shipment-form h3 {
+  margin: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 12px;
+}
+
+.field > span {
+  color: #5e7089;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.form-actions,
+.full-width {
+  grid-column: 1 / -1;
+}
+
+.checkbox {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.checkbox input {
+  width: 17px;
+  min-height: 17px;
+}
+
+.editor {
+  margin-bottom: 22px;
+  border-color: #a8c4f3;
+}
+
+.product-search {
+  max-width: 400px;
+  margin-bottom: 20px;
+  font-size: 12px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+th {
+  background: #f7f9fc;
+  color: #7b8ba2;
+  font-weight: normal;
+  font-size: 11px;
+}
+
+th,
+td {
+  padding: 16px 12px;
+  text-align: right;
+  border-bottom: 1px solid #edf1f6;
+}
+
+.product-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.product-cell small {
+  display: block;
+  color: #8794a8;
+  margin-top: 3px;
+}
+
+.low-stock {
+  color: #a85b1f;
+  font-weight: bold;
+}
+
+.empty {
+  text-align: center;
+  padding: 40px 15px;
+  color: #7c8da5;
+  font-size: 12px;
+}
+
+.empty > span {
+  font-size: 36px;
+}
+
+.footer {
+  text-align: center;
+  font-size: 10px;
+  color: #8e9bb0;
+  margin-top: 30px;
+}
+
+@media (min-width: 1600px) {
+  .orders-layout {
+    grid-template-columns: minmax(330px, 0.8fr) minmax(0, 1.4fr);
+  }
+}
+
+@media (max-width: 1150px) {
+  .sidebar {
+    width: 210px;
+  }
+
+  .content {
+    padding: 22px;
+  }
+
+  .orders-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .app {
+    display: block;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: static;
+    padding: 15px;
+  }
+
+  .brand {
+    margin-bottom: 16px;
+    font-size: 18px;
+  }
+
+  .sidebar nav {
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+  }
+
+  .nav-item {
+    width: auto;
+    flex-shrink: 0;
+    margin: 0;
+    padding: 9px 12px;
+    font-size: 11px;
+  }
+
+  .nav-item > span {
+    font-size: 18px;
+    width: auto;
+  }
+
+  .nav-caption,
+  .sidebar-note,
+  .user-card {
+    display: none;
+  }
+
+  .topbar {
+    padding: 14px 16px;
+    min-height: 70px;
+    flex-wrap: wrap;
+  }
+
+  .content {
+    padding: 18px 13px;
+  }
+
+  .page-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .stat-card {
+    padding: 15px;
+  }
+
+  .stat-card > span {
+    font-size: 11px;
+  }
+
+  .stat-card > strong {
+    font-size: 27px;
+  }
+
+  .stat-card > small {
+    font-size: 10px;
+  }
+
+  .overview-banner {
+    padding: 20px;
+  }
+
+  .overview-banner h2 {
+    font-size: 18px;
+  }
+
+  .banner-art {
+    display: none;
+  }
+
+  .card {
+    padding: 17px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filters {
+    grid-template-columns: 1fr;
+  }
+
+  .timeline li {
+    font-size: 9px;
+  }
+
+  .total-row {
+    font-size: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  button,
+  a {
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease;
+  }
+}
+
+
+
+
+.connection-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.connection-screen > .card {
+  width: min(100%, 640px);
+}
+
+.connection-screen p {
+  font-size: 13px;
+}
+
+.connection-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.connection-screen .connection-actions {
+  margin: 24px 0;
+}
+
+.menu-count {
+  margin-inline-start: auto;
+  padding: 1px 8px;
+  border-radius: 7px;
+  background: #ffffff12;
+}
+
+.real-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.real-search input {
+  max-width: 500px;
+}
+
+.search-help {
+  margin: 10px 0 20px;
+}
+
+.api-error {
+  color: #9c3030;
+  background: #fff0f0;
+  border: 1px solid #f1cccc;
+  padding: 14px;
+  border-radius: 12px;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 24px;
+  font-size: 12px;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.selected-row {
+  background: #f0f6ff;
+}
+
+.real-detail {
+  margin-top: 24px;
+}
+
+.data-record {
+  margin: 0;
+}
+
+.data-field {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 15px;
+  padding: 13px 0;
+  border-bottom: 1px solid #edf1f6;
+  font-size: 12px;
+}
+
+.data-field:last-child {
+  border-bottom: 0;
+}
+
+.data-field > dt {
+  color: #718096;
+}
+
+.data-field > dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.data-text {
+  white-space: pre-wrap;
+  unicode-bidi: plaintext;
+}
+
+.related-list {
+  display: grid;
+  gap: 12px;
+}
+
+.related-record {
+  padding: 15px;
+  background: #f8fafd;
+  border: 1px solid #e5ecf5;
+  border-radius: 12px;
+}
+
+.related-record .data-field {
+  grid-template-columns: 125px minmax(0, 1fr);
+}
+
+.real-product-image {
+  display: block;
+  width: 150px;
+  max-width: 100%;
+  height: 150px;
+  object-fit: contain;
+  background: #f4f7fb;
+  border: 1px solid #e5ecf5;
+  border-radius: 12px;
+}
+
+@media (max-width: 720px) {
+  .data-field,
+  .related-record .data-field {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  .real-search {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+
+
+/* DigiShop — dashboard visual refresh */
+
+:root {
+  --page: #f3f6fc;
+  --ink: #1b2b45;
+  --muted: #73829a;
+  --blue: #346aee;
+  --line: #e6edf7;
+
+  color: var(--ink);
+  background: var(--page);
+}
+
+body {
+  background:
+    radial-gradient(ellipse at 10% 0%, #e7edff 0, transparent 45%),
+    var(--page);
+}
+
+::selection {
+  background: #dbe7ff;
+  color: #183875;
+}
+
+/* Navigation */
+
+.sidebar {
+  background: linear-gradient(170deg, #14243e, #0b1528);
+  border-left: 1px solid #ffffff08;
+  box-shadow: -8px 0 35px #1023430a;
+}
+
+.brand {
+  padding: 5px 8px 22px;
+  border-bottom: 1px solid #ffffff10;
+  margin-bottom: 25px;
+  letter-spacing: -0.5px;
+}
+
+.brand-mark {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #6696ff, #365ee7);
+  box-shadow: 0 7px 20px #3266e540;
+}
+
+.brand small {
+  margin-top: 3px;
+  letter-spacing: 2px;
+}
+
+.nav-caption {
+  color: #8da2c1;
+  margin-bottom: 16px;
+}
+
+.nav-item {
+  position: relative;
+  min-height: 49px;
+  border: 1px solid transparent;
+  border-radius: 13px;
+  margin-bottom: 9px;
+  color: #b5c4da;
+}
+
+.nav-item:hover {
+  background: #ffffff09;
+  border-color: #ffffff0b;
+  color: white;
+}
+
+.nav-item.active {
+  background: linear-gradient(100deg, #315bd5, #427cf2);
+  border-color: #82a9ff40;
+  box-shadow: 0 6px 18px #06112730;
+  color: white;
+}
+
+.nav-item.active::before {
+  content: "";
+  position: absolute;
+  right: -10px;
+  top: 16px;
+  width: 3px;
+  height: 17px;
+  border-radius: 10px;
+  background: #82b1ff;
+}
+
+.nav-item small {
+  display: inline-grid;
+  place-items: center;
+  min-width: 25px;
+  min-height: 23px;
+  padding: 0 6px;
+  border-radius: 7px;
+  background: #ffffff12;
+  color: #dae6fa;
+}
+
+.sidebar-note {
+  color: #c5d4eb;
+}
+
+.user-card {
+  border-top-color: #ffffff10;
+}
+
+.avatar {
+  background: linear-gradient(145deg, #304667, #243552);
+  border: 1px solid #ffffff12;
+}
+
+/* Header and layout */
+
+.topbar {
+  background: #ffffffed;
+  border-bottom: 1px solid var(--line);
+  min-height: 86px;
+}
+
+.breadcrumb {
+  color: #77869c;
+  font-size: 11px;
+}
+
+.content {
+  padding-top: 32px;
+}
+
+.page-heading {
+  margin-bottom: 28px;
+}
+
+.page-heading h1 {
+  font-weight: 800;
+  letter-spacing: -1.2px;
+  color: #172943;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #4d78ce;
+  margin-bottom: 8px;
+}
+
+.eyebrow::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #5686f1;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* Cards */
+
+.card {
+  border: 1px solid #e5ecf6;
+  border-radius: 22px;
+  background: #fff;
+  padding: 26px;
+  box-shadow:
+    0 3px 6px #142d5002,
+    0 14px 40px #142d5005;
+}
+
+.section-heading {
+  padding-bottom: 18px;
+  border-bottom: 1px solid #eef2f8;
+  margin-bottom: 22px;
+}
+
+.section-heading h2 {
+  font-size: 16px;
+  color: #263c5c;
+}
+
+.counter {
+  background: #f0f5fd;
+  color: #58739b;
+  border: 1px solid #e5edf9;
+  padding: 5px 11px;
+  border-radius: 9px;
+}
+
+.editor {
+  border-color: #bdd0fa;
+  box-shadow: 0 10px 35px #346aee0b;
+}
+
+/* Buttons */
+
+.button {
+  min-height: 43px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-size: 11px;
+}
+
+.button.primary {
+  background: linear-gradient(135deg, #457cf5, #315edb);
+  border: 1px solid #3668e5;
+  box-shadow: 0 5px 12px #346aee20;
+}
+
+.button.primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #386fec, #284fca);
+  box-shadow: 0 7px 16px #346aee30;
+}
+
+.button.ghost {
+  background: #f0f5ff;
+  color: #3c65ae;
+  border: 1px solid #e2eafa;
+}
+
+.button.ghost:hover:not(:disabled) {
+  background: #e5eeff;
+  border-color: #cddcf7;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid #8bb1ff;
+  outline-offset: 3px;
+}
+
+/* Forms */
+
+input,
+select,
+textarea {
+  min-height: 48px;
+  border-radius: 12px;
+  background: #fbfcff;
+  border-color: #dfe7f3;
+  font-size: 12px;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #94a1b6;
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: #bdcce4;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  background: white;
+  border-color: #6c98f4;
+  outline: 3px solid #346aee10;
+}
+
+.field > span {
+  font-size: 11px;
+  color: #5e728f;
+  font-weight: bold;
+}
+
+.checkbox input {
+  accent-color: var(--blue);
+}
+
+/* Tables */
+
+.table-scroll {
+  border: 1px solid #e8eef7;
+  border-radius: 14px;
+  scrollbar-width: thin;
+  scrollbar-color: #bdcce3 #f2f5fb;
+}
+
+table {
+  font-size: 12px;
+}
+
+th {
+  background: #f5f8fd;
+  color: #6a7f9e;
+  font-size: 10px;
+  padding: 16px 14px;
+}
+
+td {
+  padding: 19px 14px;
+  border-bottom-color: #eef2f8;
+  color: #405573;
+}
+
+tbody tr:nth-child(even) {
+  background: #fcfdff;
+}
+
+tbody tr:hover {
+  background: #f2f7ff;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+td:first-child {
+  color: #8393aa;
+}
+
+td .button {
+  min-height: 35px;
+  padding: 6px 12px;
+  font-size: 10px;
+}
+
+/* Messages */
+
+.notice {
+  background: #ecf9f3;
+  border: 1px solid #cfeddd;
+  color: #286c4e;
+  border-radius: 13px;
+}
+
+.empty {
+  padding: 55px 20px;
+  color: #8897ae;
+}
+
+.footer {
+  margin-top: 35px;
+  color: #93a0b4;
+}
+
+/* Mobile */
+
+@media (max-width: 720px) {
+  .sidebar {
+    border-radius: 0 0 22px 22px;
+    padding: 18px 15px 16px;
+  }
+
+  .brand {
+    padding: 0 3px 15px;
+    margin-bottom: 14px;
+  }
+
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+  }
+
+  .sidebar nav {
+    padding: 3px 0;
+    scrollbar-width: none;
+  }
+
+  .sidebar nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-item {
+    min-height: 41px;
+    margin-bottom: 0;
+    border-radius: 11px;
+  }
+
+  .nav-item.active::before {
+    display: none;
+  }
+
+  .nav-item small {
+    margin-right: 7px;
+    min-height: 20px;
+    min-width: 20px;
+  }
+
+  .topbar {
+    min-height: 75px;
+    background: transparent;
+    padding: 15px;
+  }
+
+  .topbar .button {
+    min-height: 37px;
+    font-size: 10px;
+    padding: 7px 12px;
+  }
+
+  .content {
+    padding: 18px 12px;
+  }
+
+  .card {
+    padding: 18px 14px;
+    border-radius: 18px;
+  }
+
+  .section-heading {
+    flex-wrap: wrap;
+  }
+
+  .page-heading h1 {
+    font-size: 26px;
+  }
+
+  th,
+  td {
+    padding: 15px 12px;
+  }
+}
+
+
+
+/* Dashboard home */
+
+.home-welcome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 25px;
+  min-height: 245px;
+  padding: 34px;
+  border-radius: 24px;
+  background: linear-gradient(115deg, #19366d, #152745 70%);
+  color: white;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 15px 35px #18346b12;
+}
+
+.home-welcome-content {
+  position: relative;
+  z-index: 1;
+}
+
+.home-date {
+  display: inline-block;
+  color: #b3c8ed;
+  font-size: 11px;
+  margin-bottom: 17px;
+}
+
+.home-welcome h2 {
+  color: white;
+  font-size: clamp(22px, 3vw, 30px);
+  letter-spacing: -1px;
+  margin-bottom: 10px;
+}
+
+.home-welcome p {
+  color: #b8c9e4;
+  font-size: 12px;
+  max-width: 380px;
+  margin-bottom: 22px;
+}
+
+.home-welcome-button {
+  color: #254a91;
+  background: white;
+  gap: 25px;
+  box-shadow: 0 5px 15px #00000015;
+}
+
+.home-welcome-button:hover {
+  background: #e9f1ff;
+}
+
+.home-illustration {
+  width: 245px;
+  height: 190px;
+  position: relative;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+}
+
+.home-orbit {
+  position: absolute;
+  border: 1px solid #88aeff25;
+  border-radius: 50%;
+}
+
+.home-orbit-one {
+  width: 180px;
+  height: 180px;
+}
+
+.home-orbit-two {
+  width: 240px;
+  height: 240px;
+}
+
+.home-box {
+  display: grid;
+  place-items: center;
+  width: 105px;
+  height: 105px;
+  border-radius: 27px;
+  border: 1px solid #9fbeff60;
+  background: linear-gradient(145deg, #6494f2, #315db9);
+  box-shadow: 0 18px 40px #07172c40;
+  color: #edf5ff;
+  font-size: 78px;
+  line-height: 1;
+  transform: rotate(-12deg);
+}
+
+.home-floating-tag {
+  position: absolute;
+  padding: 8px 15px;
+  border: 1px solid #ffffff22;
+  border-radius: 10px;
+  background: #263e64;
+  font-size: 10px;
+  box-shadow: 0 8px 20px #07172c20;
+}
+
+.home-tag-top {
+  top: 8px;
+  right: 0;
+  transform: rotate(5deg);
+}
+
+.home-tag-bottom {
+  bottom: 5px;
+  left: 5px;
+  color: #bcd3fb;
+  letter-spacing: 2px;
+  transform: rotate(-5deg);
+}
+
+.home-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin: 30px 0 18px;
+}
+
+.home-section-title h2 {
+  font-size: 16px;
+}
+
+.home-section-title p {
+  margin: 5px 0 0;
+  font-size: 11px;
+  color: #7a8ba5;
+}
+
+.home-data-label {
+  font-size: 10px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: #e6f5ee;
+  color: #36705a;
+  white-space: nowrap;
+}
+
+.home-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 25px;
+}
+
+.home-color-blue {
+  --tile-color: #406fdb;
+  --tile-background: #edf3ff;
+}
+
+.home-color-purple {
+  --tile-color: #805bc6;
+  --tile-background: #f2edfc;
+}
+
+.home-color-orange {
+  --tile-color: #ad701e;
+  --tile-background: #fff5e6;
+}
+
+.home-color-green {
+  --tile-color: #34866b;
+  --tile-background: #e9f7f1;
+}
+
+.home-stat {
+  text-align: right;
+  background: white;
+  border: 1px solid #e5ecf6;
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 7px 25px #17315504;
+}
+
+.home-stat:hover {
+  border-color: #b4c9eb;
+  box-shadow: 0 10px 25px #17315509;
+}
+
+.home-stat-top,
+.home-stat-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.home-stat-top {
+  color: #647891;
+  font-size: 11px;
+}
+
+.home-stat-icon,
+.home-shortcut-icon {
+  display: grid;
+  place-items: center;
+  color: var(--tile-color);
+  background: var(--tile-background);
+  border-radius: 12px;
+  width: 39px;
+  height: 39px;
+  font-size: 25px;
+  flex-shrink: 0;
+}
+
+.home-stat > strong {
+  display: block;
+  color: #263e5e;
+  font-size: 34px;
+  line-height: 1.5;
+  margin: 12px 0 15px;
+}
+
+.home-stat-bottom {
+  padding-top: 12px;
+  border-top: 1px solid #eef2f8;
+  color: #8090a7;
+  font-size: 10px;
+}
+
+.home-stat-bottom > span:last-child {
+  color: var(--tile-color);
+  font-size: 17px;
+}
+
+.home-lower-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.home-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.home-shortcut {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 12px;
+  text-align: right;
+  background: #fff;
+  border: 1px solid #e8edf6;
+  border-radius: 13px;
+}
+
+.home-shortcut:hover {
+  background: #f8faff;
+  border-color: #cbdaf2;
+}
+
+.home-shortcut-text {
+  min-width: 0;
+}
+
+.home-shortcut-text strong {
+  display: block;
+  font-size: 12px;
+  color: #334e70;
+}
+
+.home-shortcut-text small {
+  display: block;
+  font-size: 10px;
+  color: #8492a7;
+  margin-top: 5px;
+}
+
+.home-shortcut-arrow {
+  margin-inline-start: auto;
+  color: #8c9fbd;
+}
+
+.home-guide-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 0;
+}
+
+.home-guide-item + .home-guide-item {
+  border-top: 1px solid #edf2f8;
+}
+
+.home-guide-item > span {
+  display: grid;
+  place-items: center;
+  width: 29px;
+  height: 29px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: #edf3fc;
+  color: #547aaf;
+  font-size: 12px;
+}
+
+.home-guide-item strong {
+  font-size: 12px;
+  color: #3e5878;
+}
+
+.home-guide-item p {
+  font-size: 11px;
+  color: #8190a6;
+  margin: 7px 0 0;
+  line-height: 2;
+}
+
+@media (max-width: 1200px) {
+  .home-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .home-lower-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .home-welcome {
+    padding: 25px 22px;
+    min-height: 220px;
+    border-radius: 19px;
+  }
+
+  .home-illustration {
+    display: none;
+  }
+
+  .home-stat {
+    padding: 15px;
+  }
+
+  .home-stat-grid {
+    gap: 12px;
+  }
+
+  .home-stat > strong {
+    font-size: 29px;
+  }
+
+  .home-stat-icon {
+    width: 31px;
+    height: 31px;
+    font-size: 21px;
+  }
+
+  .home-shortcuts {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* Product gallery upload */
+
+.gallery-picker {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 260px;
+  padding: 30px 20px;
+  margin-top: 22px;
+  border: 1.5px dashed #b8cbed;
+  border-radius: 20px;
+  background: linear-gradient(150deg, #f8faff, #eff5ff);
+  text-align: center;
+  cursor: pointer;
+}
+
+.gallery-picker:hover:not(.gallery-picker-disabled) {
+  border-color: #4e7ee5;
+  background: #edf4ff;
+}
+
+.gallery-picker:focus-within {
+  outline: 3px solid #c8dbff;
+  outline-offset: 4px;
+}
+
+.gallery-picker-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.gallery-picker-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 4px;
+  border: 1px solid #dce7fb;
+  border-radius: 19px;
+  background: white;
+  color: #4878db;
+  box-shadow: 0 7px 20px #315cb50b;
+}
+
+.gallery-picker > strong {
+  color: #334e75;
+  font-size: 14px;
+}
+
+.gallery-picker-description {
+  color: #7d90ac;
+  font-size: 11px;
+}
+
+.gallery-picker-button {
+  display: inline-block;
+  padding: 9px 18px;
+  margin-top: 5px;
+  border: 1px solid #d8e4f9;
+  border-radius: 11px;
+  background: white;
+  color: #3768c7;
+  font-size: 11px;
+  font-weight: bold;
+  box-shadow: 0 3px 8px #234a8a05;
+}
+
+.gallery-picker-formats {
+  margin-top: 8px;
+  color: #8b9bb2;
+  font-family: Tahoma, Arial, sans-serif;
+  font-size: 10px;
+}
+
+.gallery-picker-formats > span {
+  display: block;
+  margin-top: 5px;
+}
+
+.gallery-picker-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 720px) {
+  .gallery-picker {
+    min-height: 235px;
+    padding: 24px 15px;
+    border-radius: 16px;
+  }
+
+  .gallery-picker > strong {
+    font-size: 13px;
+  }
+}
+
+
+.product-image-box {
+  margin: 24px 0;
+  padding: 20px;
+  border: 1px solid #e3ebf7;
+  border-radius: 18px;
+  background: #f8faff;
+}
+
+.product-image-box .section-heading {
+  margin-bottom: 18px;
+}
+
+.product-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+  gap: 14px;
+}
+
+.product-image-tile {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 1;
+  border: 1px solid #e1e9f5;
+  border-radius: 14px;
+  background: white;
+}
+
+.product-image-tile img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  object-fit: contain;
+}
+
+.product-image-tile:hover {
+  border-color: #7099ed;
+  box-shadow: 0 6px 18px #346aee12;
+}
+
+.product-image-badge {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 4px 8px;
+  border-radius: 7px;
+  background: #edf3ff;
+  color: #315da9;
+  font-size: 10px;
+}
+
+@media (max-width: 720px) {
+  .product-image-box {
+    padding: 14px;
+  }
+
+  .product-image-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+}
+
+
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 30px 20px;
+  background:
+    radial-gradient(ellipse at 15% 10%, #dae6ff, transparent 55%),
+    #f3f6fc;
+}
+
+.auth-shell {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: min(100%, 960px);
+  min-height: 570px;
+  overflow: hidden;
+  border: 1px solid #e1e9f5;
+  border-radius: 28px;
+  background: white;
+  box-shadow: 0 25px 80px #18346b12;
+}
+
+.auth-story {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 42px;
+  color: white;
+  background: linear-gradient(150deg, #254c93, #11213b);
+}
+
+.auth-story-label {
+  color: #bdd1f3;
+  font-size: 11px;
+  letter-spacing: 4px;
+}
+
+.auth-story-symbol {
+  display: grid;
+  place-items: center;
+  width: 105px;
+  height: 105px;
+  margin: 35px 0;
+  border: 1px solid #ffffff35;
+  border-radius: 28px;
+  background: linear-gradient(145deg, #6b9bff, #3762c6);
+  color: #edf4ff;
+  font-size: 77px;
+  line-height: 1;
+  transform: rotate(-10deg);
+}
+
+.auth-story h1 {
+  font-size: 27px;
+  line-height: 1.8;
+  color: white;
+}
+
+.auth-story p {
+  color: #c0cfe7;
+  font-size: 12px;
+  line-height: 2.2;
+}
+
+.auth-story-bottom {
+  margin-top: 35px;
+  color: #94adcf;
+  font-size: 10px;
+}
+
+.auth-card {
+  padding: 45px 36px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 35px;
+  font-size: 20px;
+  color: #263f62;
+}
+
+.auth-card h2 {
+  font-size: 22px;
+  line-height: 1.9;
+}
+
+.auth-description {
+  color: #7d8da4;
+  font-size: 12px;
+  margin: 12px 0 25px;
+}
+
+.auth-submit {
+  width: 100%;
+  margin-top: 23px;
+  min-height: 48px;
+}
+
+.auth-card input {
+  min-height: 52px;
+  font-size: 16px;
+}
+
+.auth-card input.auth-code-input {
+  text-align: center;
+  font-size: 26px;
+  letter-spacing: 9px;
+  font-family: Arial, sans-serif;
+}
+
+.auth-secondary-actions {
+  display: grid;
+  gap: 15px;
+  margin-top: 18px;
+}
+
+.auth-text-button {
+  border: 0;
+  background: transparent;
+  color: #5077b6;
+  padding: 6px;
+  font-size: 12px;
+}
+
+.auth-error {
+  padding: 13px 15px;
+  border: 1px solid #f0d1d1;
+  border-radius: 12px;
+  background: #fff2f2;
+  color: #a03e3e;
+  font-size: 12px;
+  margin-bottom: 22px;
+  overflow-wrap: anywhere;
+}
+
+.auth-profile {
+  margin: 0;
+}
+
+.auth-profile > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 13px 0;
+  border-bottom: 1px solid #eaf0f8;
+  font-size: 12px;
+}
+
+.auth-profile dt {
+  color: #8492a8;
+}
+
+.auth-profile dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .auth-page {
+    padding: 20px 12px;
+  }
+
+  .auth-shell {
+    grid-template-columns: 1fr;
+    min-height: auto;
+    max-width: 440px;
+    border-radius: 22px;
+  }
+
+  .auth-story {
+    display: none;
+  }
+
+  .auth-card {
+    padding: 35px 24px;
+    min-height: 480px;
+  }
+}
+
+.customer-welcome {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 30px;
+  margin-bottom: 24px;
+  border: 1px solid #dce7fa;
+  border-radius: 22px;
+  background: linear-gradient(120deg, #e8f0ff, #f8fbff);
+}
+
+.customer-welcome h2 {
+  font-size: 24px;
+  color: #294775;
+}
+
+.customer-welcome p:not(.eyebrow) {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: #7186a5;
+}
+
+.customer-welcome-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 23px;
+  background: linear-gradient(145deg, #6495f9, #3864cd);
+  box-shadow: 0 10px 25px #3668cc20;
+  color: white;
+  font-size: 60px;
+  line-height: 1;
+}
+
+.customer-summary,
+.customer-address-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.customer-address {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid #e2eaf6;
+  border-radius: 16px;
+  background: #f9fbff;
+}
+
+.customer-address p {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.customer-address .muted {
+  margin-top: 10px;
+}
+
+@media (max-width: 720px) {
+  .customer-summary,
+  .customer-address-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .customer-welcome {
+    padding: 22px 18px;
+    gap: 15px;
+  }
+
+  .customer-welcome-icon {
+    width: 55px;
+    height: 55px;
+    border-radius: 16px;
+    font-size: 42px;
+  }
+
+  .customer-welcome h2 {
+    font-size: 19px;
+  }
+}
+
+.owner-auth {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: clamp(24px, 6vw, 100px);
+  padding: clamp(24px, 7vw, 100px);
+  background:
+    radial-gradient(circle at 90% 15%, #dce9ff, transparent 40%),
+    #f5f7fc;
+}
+
+.owner-auth-intro {
+  max-width: 560px;
+}
+
+.owner-auth-brand {
+  color: #3159be;
+  font-weight: 800;
+  letter-spacing: 4px;
+}
+
+.owner-auth-intro h1 {
+  font-size: clamp(28px, 3.8vw, 48px);
+  line-height: 1.6;
+  color: #17294c;
+}
+
+.owner-auth-intro p {
+  color: #64748b;
+  line-height: 2;
+}
+
+.owner-auth-intro a {
+  display: inline-block;
+  margin-top: 20px;
+  color: #3159be;
+}
+
+.owner-auth-form {
+  width: 100%;
+  max-width: 480px;
+  justify-self: center;
+  padding: clamp(24px, 4vw, 44px);
+  border: 1px solid #e4eaf4;
+  box-shadow: 0 24px 70px #243b6b12;
+}
+
+.owner-auth-form fieldset {
+  border: 0;
+  padding: 0;
+  margin: 26px 0 0;
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+}
+
+.owner-auth-form input {
+  width: 100%;
+  min-height: 48px;
+}
+
+.owner-auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.owner-auth-error {
+  background: #fff0f0;
+  border: 1px solid #f1cece;
+  color: #9b2727;
+  padding: 14px;
+  border-radius: 12px;
+  line-height: 1.9;
+}
+
+.owner-auth-status {
+  max-width: 660px;
+  margin: 70px auto;
+  padding: 20px;
+}
+
+@media (max-width: 800px) {
+  .owner-auth {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding: 24px 16px;
+  }
+
+  .owner-auth-intro {
+    text-align: center;
+    margin: auto;
+  }
+
+  .owner-auth-form {
+    max-width: 520px;
+  }
+}
+.signin-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 36px 18px;
+  background:
+    radial-gradient(ellipse at 50% 0%, #e6edff, transparent 60%),
+    #f7f9fc;
+  color: #17243d;
+}
+
+.signin-container {
+  width: 100%;
+  max-width: 440px;
+}
+
+.signin-brand {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.signin-logo {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: linear-gradient(140deg, #5986ff, #3159db);
+  color: white;
+  font-size: 25px;
+  font-weight: 800;
+  box-shadow: 0 8px 20px #3159db25;
+}
+
+.signin-brand strong {
+  display: block;
+  font-size: 21px;
+}
+
+.signin-brand div > span {
+  display: block;
+  margin-top: 4px;
+  color: #718096;
+  font-size: 12px;
+}
+
+.signin-card {
+  padding: 36px;
+  background: #fff;
+  border: 1px solid #e5eaf3;
+  border-radius: 24px;
+  box-shadow: 0 20px 60px #233c6c0b;
+}
+
+.signin-step {
+  display: block;
+  color: #4265ce;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.signin-card h1 {
+  margin: 0 0 12px;
+  font-size: 23px;
+  line-height: 1.7;
+}
+
+.signin-description {
+  color: #6c778b;
+  font-size: 13px;
+  line-height: 2;
+  margin: 0 0 28px;
+}
+
+.signin-field {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.signin-field input {
+  width: 100%;
+  min-height: 54px;
+  padding: 12px 15px;
+  border: 1px solid #d9e1ef;
+  border-radius: 12px;
+  background: #fcfdff;
+  color: #17243d;
+  font-family: inherit;
+  font-size: 17px;
+  outline: none;
+}
+
+.signin-field input:focus {
+  border-color: #4873ee;
+  box-shadow: 0 0 0 4px #4873ee12;
+}
+
+.signin-field input.signin-code {
+  text-align: center;
+  font-size: 24px;
+  letter-spacing: 9px;
+}
+
+.signin-primary {
+  width: 100%;
+  min-height: 50px;
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 12px;
+  background: #3866e8;
+  color: white;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.signin-primary:hover:not(:disabled) {
+  background: #2854d1;
+}
+
+.signin-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.signin-link,
+.signin-back {
+  border: 0;
+  background: none;
+  color: #4164c8;
+  font: inherit;
+  font-size: 13px;
+  padding: 10px 0;
+  cursor: pointer;
+}
+
+.signin-card > .signin-link {
+  display: block;
+  margin: 14px auto 0;
+}
+
+.signin-link:disabled,
+.signin-back:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.signin-back {
+  display: block;
+  margin-bottom: 20px;
+}
+
+.signin-resend {
+  min-height: 42px;
+  margin-top: 16px;
+  text-align: center;
+  color: #7b879b;
+  font-size: 12px;
+}
+
+.signin-error {
+  padding: 12px 14px;
+  margin-bottom: 20px;
+  border: 1px solid #f0d0d0;
+  border-radius: 12px;
+  color: #a23030;
+  background: #fff5f5;
+  font-size: 13px;
+  line-height: 1.9;
+}
+
+.signin-actions {
+  display: grid;
+  gap: 12px;
+}
+
+.signin-status {
+  text-align: center;
+  color: #6c778b;
+  line-height: 2;
+}
+
+.signin-footer {
+  margin-top: 22px;
+  text-align: center;
+  font-size: 11px;
+  color: #8791a3;
+}
+
+@media (max-width: 480px) {
+  .signin-page {
+    padding: 24px 14px;
+  }
+
+  .signin-card {
+    padding: 26px 22px;
+    border-radius: 20px;
+  }
+}
+.account-form {
+  display: grid;
+  gap: 18px;
+}
+
+.account-form fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  display: grid;
+  gap: 18px;
+}
+
+.account-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.account-field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.account-field input,
+.account-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 12px;
+  border: 1px solid #dce4ee;
+  border-radius: 10px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+}
+
+.account-field input:read-only {
+  background: #f5f7fa;
+}
+
+.account-field textarea {
+  resize: vertical;
+}
+
+.account-field input:focus,
+.account-field textarea:focus {
+  outline: 2px solid #b9d5ee;
+  outline-offset: 2px;
+}
+
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.account-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 13px;
+}
+
+.account-check input {
+  width: auto;
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+
+.account-check small {
+  display: block;
+  color: #718096;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  margin-top: 5px;
+}
+
+.account-spacing {
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.account-profile-image {
+  display: block;
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 14px;
+}
+
+.account-address-form {
+  padding: 18px;
+  border: 1px solid #dce4ee;
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+
+.account-confirm {
+  padding: 12px;
+  background: #fff6f2;
+  border-radius: 10px;
+  margin-top: 12px;
+}
+
+.account-permissions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  max-height: 360px;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid #dce4ee;
+  border-radius: 10px;
+}
+
+@media (max-width: 650px) {
+  .account-form-grid,
+  .account-permissions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.staff-access-heading {
+  margin-top: 10px;
+}
+
+.staff-access-heading h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.staff-access-heading p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.9;
+}
+
+.staff-access-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.staff-access-card {
+  padding: 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+  min-width: 0;
+}
+
+.staff-access-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.staff-access-section {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  margin-bottom: 5px;
+}
+
+.staff-access-card h4 {
+  margin: 0;
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.staff-access-all {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.staff-access-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.staff-access-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  font-size: 12px;
+  color: #475569;
+  cursor: pointer;
+}
+
+.staff-access-option.is-selected {
+  border-color: #a5b4fc;
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.staff-access-option.is-delete.is-selected {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.staff-access-all input,
+.staff-access-option input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #4361ee;
+}
+
+.staff-access-note {
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.9;
+}
+
+@media (max-width: 800px) {
+  .staff-access-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.sf-customer {
+  gap: 10px;
+  max-width: 230px;
+  min-width: 0;
+}
+
+.sf-customer-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border: 1px solid #e1e7f2;
+  border-radius: 50%;
+  background: #f1f5ff;
+  color: #315bea;
+}
+
+.sf-customer-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sf-customer-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sf-customer-loading {
+  color: #8490a5;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .sf-customer {
+    max-width: 170px;
+  }
+
+  .sf-customer-avatar {
+    width: 34px;
+    height: 34px;
+  }
+
+  .sf-customer-name {
+    font-size: 11px;
+  }
+
+  .sf-customer-loading {
+    margin-right: auto;
+  }
+}

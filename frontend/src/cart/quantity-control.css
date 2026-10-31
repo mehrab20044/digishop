@@ -1,0 +1,149 @@
+.sf-root .purchase-actions {
+  --purchase-primary: var(--sf-blue, #315bea);
+}
+
+.sf-root .purchase-actions .purchase-form {
+  display: block;
+  margin-top: 18px;
+}
+
+.purchase-quantity-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.purchase-quantity-heading > span {
+  color: var(--sf-ink, #26334b);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.purchase-quantity-heading > small {
+  color: #8b95a6;
+  font-size: 10px;
+}
+
+.purchase-action-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.sf-root .purchase-stepper {
+  display: grid;
+  grid-template-columns: 34px minmax(28px, 1fr) 34px;
+  align-items: center;
+  flex: 0 0 106px;
+  height: 48px;
+  padding: 3px;
+  border: 1px solid #dfe5ef;
+  border-radius: 11px;
+  background: #fff;
+  direction: ltr;
+}
+
+.sf-root .purchase-stepper > button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 38px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--purchase-primary);
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.sf-root .purchase-stepper > button:hover:not(:disabled) {
+  background: #f1f4f9;
+}
+
+.sf-root .purchase-stepper > button:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.sf-root .purchase-stepper > button:disabled {
+  background: transparent;
+  color: #c7ced9;
+  cursor: not-allowed;
+}
+
+.sf-root .purchase-count {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--sf-ink, #26334b);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.sf-root .purchase-actions .purchase-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 11px;
+  background: var(--purchase-primary);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.8;
+}
+
+.sf-root .purchase-actions .purchase-submit:hover:not(:disabled) {
+  filter: brightness(0.94);
+}
+
+.sf-root .purchase-actions .purchase-submit:disabled {
+  background: #e7ebf2;
+  color: #8993a4 !important;
+  filter: none;
+  cursor: not-allowed;
+}
+
+.sf-root .purchase-actions button:focus-visible {
+  outline: 2px solid var(--purchase-primary);
+  outline-offset: 3px;
+}
+
+.sf-root .purchase-actions > .purchase-note {
+  margin-top: 15px;
+  padding-top: 13px;
+  border-top: 1px solid #e8ecf3;
+  color: #919aab;
+  font-size: 10px;
+  line-height: 2;
+}
+
+@media (max-width: 760px) {
+  .sf-root .purchase-stepper {
+    height: 50px;
+    grid-template-columns: 38px minmax(28px, 1fr) 38px;
+    flex-basis: 116px;
+  }
+
+  .sf-root .purchase-stepper > button {
+    width: 38px;
+    height: 44px;
+  }
+
+  .sf-root .purchase-actions .purchase-submit {
+    min-height: 50px;
+    font-size: 12px;
+  }
+}

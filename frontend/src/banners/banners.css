@@ -1,0 +1,446 @@
+.bn-carousel{position:relative;margin:26px 0 16px;border-radius:18px;overflow:hidden;background:var(--store-surface,#f4f6fa)}.bn-card{position:relative;display:block;overflow:hidden;border-radius:14px;background:var(--store-surface,#f4f6fa);color:var(--store-text,#17212d);text-decoration:none}.bn-card picture,.bn-card img{display:block;width:100%}.bn-card img{height:auto;aspect-ratio:4.4/1;object-fit:cover}.bn-copy{padding:clamp(24px,4vw,60px);line-height:1.9;min-height:230px;display:flex;align-items:flex-start;justify-content:center;flex-direction:column}.bn-copy h2{font-size:clamp(22px,3vw,38px);line-height:1.6;max-width:650px}.bn-copy p{white-space:pre-wrap;margin:14px 0!important;max-width:650px}.bn-button{display:inline-block;padding:10px 24px;border-radius:9px;background:var(--store-primary,#315bea);color:var(--store-button-text,#fff);margin-top:14px;font-size:13px;font-weight:700}.bn-card.has-image.with-copy{display:grid;grid-template-columns:1fr 1fr;align-items:center}.bn-card.has-image.with-copy img{aspect-ratio:1.8/1;object-fit:contain}.bn-controls{display:flex;gap:10px;align-items:center;position:absolute;bottom:12px;inset-inline-start:18px;background:#fffdf3e8;border-radius:25px;padding:5px 8px;color:#26384a}.bn-controls>button{background:#fff;border:1px solid #d8dfe5;border-radius:50%;width:30px;height:30px;display:grid;place-items:center;font-size:22px;color:#26384a}.bn-controls .bn-pause{font-size:12px}.bn-dots{display:flex;gap:6px}.bn-dots button{width:7px;height:7px;padding:0;border-radius:50%;border:0;background:#a1abb3}.bn-dots button.is-active{background:#304b61;width:18px;border-radius:10px}.bn-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin:24px 0}.bn-tiles .bn-card img{aspect-ratio:2/1;object-fit:cover}.bn-tiles .bn-copy{min-height:150px;padding:24px}.bn-tiles .bn-copy h2{font-size:20px}.bn-top .bn-card{border-radius:0}.bn-top .bn-card img{aspect-ratio:24/1;object-fit:cover}.bn-top .bn-copy{min-height:0;padding:10px 24px;text-align:center;align-items:center}.bn-top .bn-copy h2{font-size:14px}.bn-top .bn-copy p{margin:3px 0!important;font-size:12px}.bn-top .bn-button{padding:4px 12px;margin-top:5px}.bn-top .bn-card.has-image.with-copy{display:block}.bn-top .bn-card.has-image.with-copy .bn-copy{position:absolute;inset:0;background:#0007;color:white}.bn-editor{display:grid;grid-template-columns:260px minmax(0,1fr);gap:24px}.bn-editor-list{display:flex;flex-direction:column;gap:10px}.bn-editor-item{display:flex;gap:5px;border:1px solid #dce3e9;border-radius:10px;padding:8px;background:#fff;align-items:center}.bn-editor-item.is-active{border-color:#176b61;background:#edf6f1}.bn-editor-item>button:first-child{flex:1;display:grid;text-align:right;border:0;background:none;padding:8px;min-width:0}.bn-editor-item strong{font-size:13px;overflow-wrap:anywhere}.bn-editor-item small{font-size:10px;color:#6e7f8a}.bn-editor-item>button{border:1px solid #dde4e9;background:#fff;border-radius:5px;min-width:26px;padding:4px}.bn-form{background:#fff;border:1px solid #dfe6eb;border-radius:14px;padding:24px}.bn-upload-row{display:grid;grid-template-columns:1fr 1fr;gap:18px}.bn-upload-row img{max-width:100%;height:120px;object-fit:contain;border-radius:8px}.bn-preview{margin-top:20px;border:1px dashed #c8d5df;padding:12px;border-radius:12px}.bn-meta{font-size:12px;color:#71818e}.bn-check{display:flex;align-items:center;gap:8px;font-size:13px;margin:12px 0}.bn-check input{width:auto!important}.bn-add{display:flex;gap:6px;flex-wrap:wrap}.bn-add button{flex:1;padding:8px;font-size:11px;border:1px solid #dce4e9;border-radius:7px;background:#fff}.bn-empty{padding:50px 24px;border:1px dashed #cbd6df;border-radius:14px;text-align:center;color:#6f818d}.bn-actions{display:flex;justify-content:space-between;margin-top:20px}.bn-editor button:focus-visible,.bn-carousel button:focus-visible{outline:3px solid #e5ad42;outline-offset:3px}@media(max-width:700px){.bn-card img{aspect-ratio:1.8/1}.bn-card.has-image.with-copy{grid-template-columns:1fr}.bn-card.has-image.with-copy img{aspect-ratio:2/1}.bn-copy{min-height:210px;padding-bottom:60px}.bn-tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.bn-tiles .bn-card img{aspect-ratio:1.3/1}.bn-top .bn-card img{aspect-ratio:9/1}.bn-editor{grid-template-columns:1fr}.bn-editor-list{max-height:280px;overflow:auto}.bn-upload-row{grid-template-columns:1fr}.bn-tiles .bn-copy h2{font-size:16px}}
+.bn-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.bn-hero-wide{max-width:1920px;margin:0 auto}.bn-hero-wide .bn-carousel{margin:0 0 18px;border-radius:0}.bn-hero-wide .bn-card{border-radius:0}
+.bn-loading{width:100%;aspect-ratio:4.4/1;background:var(--store-surface,#f4f6fa)}@media(max-width:700px){.bn-loading{aspect-ratio:1.8/1}}
+.bn-carousel .bn-card{animation:bn-fade .3s ease-out}@keyframes bn-fade{from{opacity:.7}to{opacity:1}}@media(prefers-reduced-motion:reduce){.bn-carousel .bn-card{animation:none}}
+
+/* Configurable media canvas. These rules intentionally override the legacy split layout. */
+.bn-card video{display:block;width:100%;height:auto;aspect-ratio:4.4/1;object-fit:cover;background:#0e1724}.bn-card.bn-fit-contain img,.bn-card.bn-fit-contain video{object-fit:contain}.bn-card.bn-fit-cover img,.bn-card.bn-fit-cover video{object-fit:cover}.bn-card.bn-position-right img,.bn-card.bn-position-right video{object-position:right center}.bn-card.bn-position-left img,.bn-card.bn-position-left video{object-position:left center}
+.bn-card.bn-height-compact img,.bn-card.bn-height-compact video{aspect-ratio:6/1}.bn-card.bn-height-tall img,.bn-card.bn-height-tall video{aspect-ratio:3/1}.bn-card.bn-height-natural img,.bn-card.bn-height-natural video{aspect-ratio:auto;height:auto}
+.bn-card.bn-width-contained{max-width:1240px;margin-inline:auto}.bn-card.bn-layout-overlay.has-image.with-copy{display:block}.bn-layout-overlay .bn-copy{position:absolute;inset:0;min-height:0;color:#fff;background:linear-gradient(90deg,transparent,color-mix(in srgb,#000 var(--bn-shade),transparent));pointer-events:none}.bn-layout-overlay .bn-button{pointer-events:auto}.bn-card.bn-layout-overlay.bn-text-dark .bn-copy{color:#182432;background:linear-gradient(90deg,transparent,color-mix(in srgb,#fff var(--bn-shade),transparent))}.bn-card.bn-layout-overlay img,.bn-card.bn-layout-overlay video{aspect-ratio:4.4/1}.bn-card.bn-layout-overlay.bn-height-tall img,.bn-card.bn-layout-overlay.bn-height-tall video{aspect-ratio:3/1}.bn-card.bn-layout-overlay.bn-height-compact img,.bn-card.bn-layout-overlay.bn-height-compact video{aspect-ratio:6/1}.bn-card.bn-layout-overlay.bn-height-natural img,.bn-card.bn-layout-overlay.bn-height-natural video{aspect-ratio:auto}
+.bn-card.bn-position-center .bn-copy{align-items:center;text-align:center}.bn-card.bn-position-left .bn-copy{align-items:flex-end;text-align:left}.bn-card.has-video .bn-copy{bottom:52px}.bn-card.has-video.bn-layout-split .bn-copy{position:static}.bn-carousel:has(video) .bn-controls{position:static;justify-content:center;border-radius:0;padding:10px}.bn-card.bn-layout-split video{aspect-ratio:1.8/1}
+.bn-section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid #e5eaf0;padding:22px 0 14px;margin-top:18px}.bn-section-heading b{font-size:15px;color:#213d53}.bn-section-heading span{font-size:11px;color:#728697}.bn-form fieldset{border:0;padding:0;margin:0;min-width:0}.bn-upload-row>div{padding:16px;border:1px dashed #c8d5df;border-radius:12px;background:#f7fafc}.bn-upload-row video{width:100%;max-height:160px;background:#152332;border-radius:8px}.bn-schedule{margin-top:24px;padding:16px;border:1px solid #dfe7ed;border-radius:10px}.bn-schedule summary{cursor:pointer;font-size:13px;font-weight:700;margin-bottom:14px}.bn-preview{margin-top:30px;padding:20px;background:#edf1f5}.bn-preview-tools{display:flex;gap:8px;align-items:center}.bn-preview-tools strong{margin-inline-end:auto;font-size:14px}.bn-preview-tools button{border:1px solid #ccd8e2;background:white;border-radius:8px;padding:8px 14px;font:12px Tahoma}.bn-preview-tools button[aria-pressed=true]{background:#173f52;color:white}.bn-preview-frame{background:white;border-radius:12px;overflow:hidden;margin-inline:auto;width:100%;transition:width .2s}.bn-preview-mobile .bn-preview-frame{width:390px;max-width:100%}.bn-preview-mobile .bn-card{display:block!important}.bn-preview-mobile .bn-card img,.bn-preview-mobile .bn-card video{aspect-ratio:1.4/1}.bn-preview-mobile .bn-copy{padding:20px}.bn-preview-mobile .bn-copy h2{font-size:21px}.bn-preview-mobile .bn-copy p{font-size:12px}.bn-preview-mobile .bn-button{padding:7px 13px;font-size:11px}.bn-video-error{padding:50px;text-align:center;background:#16202a;color:white}
+@media(max-width:700px){.bn-card video,.bn-card.bn-layout-overlay img,.bn-card.bn-layout-overlay video{aspect-ratio:1.4/1}.bn-card.bn-height-compact img,.bn-card.bn-height-compact video,.bn-card.bn-layout-overlay.bn-height-compact img,.bn-card.bn-layout-overlay.bn-height-compact video{aspect-ratio:2/1}.bn-card.bn-height-tall img,.bn-card.bn-height-tall video,.bn-card.bn-layout-overlay.bn-height-tall img,.bn-card.bn-layout-overlay.bn-height-tall video{aspect-ratio:1/1}.bn-card .bn-copy{padding:20px}.bn-section-heading{align-items:flex-start;flex-direction:column}.bn-preview{padding:10px}.bn-card.bn-layout-split video{aspect-ratio:1.8/1}}
+
+.bn-list-title{display:flex;align-items:center;gap:8px}.bn-list-title img{width:44px;height:38px;object-fit:cover;border-radius:5px}.bn-list-icon{display:grid;place-items:center;width:40px;height:36px;background:#edf3f6;border-radius:6px;font-size:20px;color:#527284;flex-shrink:0}.bn-editor>aside{position:sticky;top:20px;align-self:start}.bn-form .pbe-field{margin-bottom:16px}.bn-preview-frame .bn-copy h2{overflow-wrap:anywhere}@media(max-width:700px){.bn-editor>aside{position:static}}
+/* خود فایل تبلیغ، بدون کارت متنی یا دکمهٔ جدا */
+.ad-banner {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+.ad-banner-link {
+  display: block;
+  width: 100%;
+  line-height: 0;
+  text-decoration: none;
+}
+
+.ad-banner img,
+.ad-banner video {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  border: 0;
+}
+
+/* نسبت اصلی فایل حفظ می‌شود؛ نوشته‌های داخل عکس بریده نمی‌شوند. */
+.ad-banner video {
+  background: #111827;
+}
+
+.ad-banner-link:focus-visible {
+  outline: 4px solid #2563eb;
+  outline-offset: -4px;
+}
+
+.ad-video-control {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #ffffff80;
+  border-radius: 50%;
+  background: #111827cc;
+  color: white;
+  cursor: pointer;
+}
+
+/* بنر اصلی تمام عرض */
+.bn-carousel,
+.bn-hero-wide .bn-carousel {
+  margin: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* کنترل‌های اسلایدر، جدا از خود تبلیغ */
+.bn-controls {
+  z-index: 2;
+}
+
+/* تبلیغ‌های کنار هم */
+.bn-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 24px 0;
+}
+
+.bn-tiles .ad-banner {
+  border-radius: 14px;
+}
+
+/* فرم مدیریت */
+.ads-manager {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.ads-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ads-list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #dce4ec;
+  border-radius: 10px;
+  background: white;
+  text-align: right;
+  cursor: pointer;
+}
+
+.ads-list-item.is-active {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.ads-list-item img {
+  width: 68px;
+  height: 42px;
+  border-radius: 5px;
+  object-fit: cover;
+}
+
+.ads-list-item strong,
+.ads-list-item small {
+  display: block;
+}
+
+.ads-list-item small {
+  margin-top: 5px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.ads-edit {
+  min-width: 0;
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: white;
+}
+
+.ads-edit fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ads-edit .pbe-field {
+  margin-bottom: 18px;
+}
+
+.ads-upload {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+  padding: 24px;
+  border: 2px dashed #b7c9dd;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.ads-upload span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.ads-advanced {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.ads-advanced summary {
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+
+.ads-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.ads-actions button {
+  padding: 9px 12px;
+  border: 1px solid #dce4ec;
+  border-radius: 8px;
+  background: white;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ads-actions .ads-delete {
+  margin-inline-start: auto;
+  color: #b91c1c;
+}
+
+.ads-preview {
+  margin-top: 28px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #f1f5f9;
+}
+
+.ads-preview > p {
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.ads-empty {
+  padding: 60px 20px;
+  text-align: center;
+  color: #64748b;
+}
+
+.ads-bottom {
+  margin: 28px 0;
+}
+
+@media (max-width: 760px) {
+  .ads-manager {
+    grid-template-columns: 1fr;
+  }
+
+  .ads-edit {
+    padding: 16px;
+  }
+
+  .bn-tiles {
+    grid-template-columns: 1fr;
+  }
+}
+/* هر جایگاه، اندازه و فاصلهٔ مستقل دارد. */
+.ads-placement {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+
+/* تبلیغ بالای سایت: یک نوار کوتاه و تمام‌عرض */
+.bn-top {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.ads-placement--top {
+  gap: 0;
+}
+
+.ads-placement--top .ad-banner,
+.ads-placement--top .ad-banner-link {
+  height: clamp(48px, 5vw, 96px);
+  border-radius: 0;
+}
+
+.ads-placement--top img,
+.ads-placement--top video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+/* تبلیغ پایین سایت: داخل عرض محتوای فروشگاه */
+.ads-bottom {
+  margin-block: 28px;
+}
+
+.ads-bottom:not(:has(.ads-placement)) {
+  display: none;
+}
+
+.ads-placement--bottom .ad-banner {
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+.ads-placement--bottom .ad-banner-link {
+  height: clamp(140px, 20vw, 260px);
+}
+
+.ads-placement--bottom img,
+.ads-placement--bottom video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+/* بنر اصلی نسبت طبیعی تصویر را نگه می‌دارد. */
+.bn-hero-wide .ad-banner img,
+.bn-hero-wide .ad-banner video {
+  width: 100%;
+  height: auto;
+}
+
+/* موبایل */
+@media (max-width: 650px) {
+  .ads-placement--top .ad-banner,
+  .ads-placement--top .ad-banner-link {
+    height: 56px;
+  }
+
+  .ads-placement--bottom .ad-banner-link {
+    height: clamp(120px, 32vw, 180px);
+  }
+
+  .ads-placement--bottom .ad-banner {
+    border-radius: 10px;
+  }
+
+  .ads-bottom {
+    margin-block: 20px;
+  }
+}
+.store-offer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 20px;
+  box-sizing: border-box;
+  background: linear-gradient(100deg, #ed7a14, #f45b00);
+  color: #fff;
+  text-align: center;
+  text-decoration: none;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.store-offer-bar strong {
+  font-weight: 700;
+}
+
+.store-offer-icon {
+  font-size: 24px;
+}
+
+.store-offer-bar:focus-visible {
+  outline: 3px solid #172554;
+  outline-offset: -3px;
+}
+
+@media (max-width: 650px) {
+  .store-offer-bar {
+    min-height: 40px;
+    gap: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}
+.bn-top {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: #05277a;
+}
+
+.bn-top .ads-placement {
+  display: block;
+  margin: 0;
+  padding: 0;
+}
+
+.bn-top .ad-banner,
+.bn-top .ad-banner-link {
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: 112px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 0;
+}
+
+.bn-top .ad-banner img,
+.bn-top .ad-banner video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  object-position: center;
+}
+
+@media (max-width: 650px) {
+  .bn-top .ad-banner,
+  .bn-top .ad-banner-link {
+    height: 64px;
+  }
+}
+/* تبلیغ پایین: تمام‌عرض، مانند تبلیغ بالا */
+.ads-bottom {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ads-bottom .ads-placement--bottom {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.ads-bottom .ad-banner,
+.ads-bottom .ad-banner-link {
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: 112px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 0;
+}
+
+.ads-bottom .ad-banner img,
+.ads-bottom .ad-banner video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  object-position: center;
+}
+
+@media (max-width: 650px) {
+  .ads-bottom .ad-banner,
+  .ads-bottom .ad-banner-link {
+    height: 64px;
+  }
+}

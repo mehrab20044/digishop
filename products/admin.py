@@ -74,13 +74,18 @@ class ProductAdminForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        from products.services.category_service import category_tree_write_lock
+        with category_tree_write_lock():
+            if self.instance.pk:
+                Product.objects.select_for_update().get(pk=self.instance.pk)
         category = cleaned_data.get("category")
 
         if not category or not self.instance.pk:
             return cleaned_data
 
+        from products.services.attribute_service import effective_rules
         invalid = self.instance.attribute_values.exclude(
-            attribute__category_attributes__category=category
+            attribute_id__in=effective_rules(category.pk)
         ).exists()
 
         if invalid:
@@ -370,6 +375,7 @@ class ProductVariantInline(admin.TabularInline):
 
     fields = (
         "sku",
+        "options",
         "color",
         "storage",
         "price",
@@ -399,7 +405,7 @@ class ProductAdmin(admin.ModelAdmin):
     ProductAttributeValueInline,
     ProductVariantInline,
 ]
-    exclude = ("description", "image")
+    exclude = ("description", "image", "long_description_html", "gallery_description_html")
 
     def save_related(self, request, form, formsets, change):
         super().save_related(request, form, formsets, change)
@@ -423,3 +429,27 @@ class ProductAdmin(admin.ModelAdmin):
                 is_primary=not has_primary and offset == 1,
             )
 
+
+
+class CategoryAttributeRuleFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors) or not self.instance.pk:
+            return
+        from products.services.attribute_service import validate_product_specs
+        from products.services.category_service import category_tree_write_lock
+        rows = []
+        for form in self.forms:
+            data = form.cleaned_data
+            if data and not data.get('DELETE') and data.get('attribute'):
+                rows.append(CategoryAttribute(category=self.instance, attribute=data['attribute'], required=data.get('required', False), sort_order=data.get('sort_order', 0)))
+        with category_tree_write_lock(), transaction.atomic():
+            CategoryAttribute.objects.filter(category=self.instance).delete()
+            CategoryAttribute.objects.bulk_create(rows)
+            for product in Product.objects.select_for_update().order_by('pk'):
+                validate_product_specs(product, require_all=product.status == Product.Status.PUBLISHED)
+            # Validate a prospective change without persisting it during form cleaning.
+            transaction.set_rollback(True)
+
+
+CategoryAttributeInline.formset = CategoryAttributeRuleFormSet

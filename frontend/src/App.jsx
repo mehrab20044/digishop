@@ -1,10 +1,17 @@
+import FooterManager from "./customer-hub/FooterManager";
+import CustomerOperations from "./customer-hub/CustomerOperations";
+import CategoryRules from "./catalog/CategoryRules";
+import ProductWorkspace from "./catalog/ProductWorkspace";
+import LibraryManager from "./catalog/LibraryManager";
+import BannerManager from "./banners/BannerManager";
+import AppearanceManager from "./appearance/AppearanceManager";
+import PageManager from "./pages/PageManager";
 import CategoryManager from "./categories/CategoryManager";
 import { useEffect, useRef, useState } from "react";
 
 import { managementFetch } from "./managementAuth";
 import DashboardHome from "./DashboardHome";
 import Editor, { CREATABLE, EDITABLE } from "./Editor";
-import ProductCreate from "./ProductCreate";
 import ProductGallery from "./ProductGallery";
 import ProductPublication from "./ProductPublication";
 import SEOManager from "./SEOManager";
@@ -104,9 +111,20 @@ function readLocation() {
 
 function useNavigation() {
   const [location, setLocation] = useState(readLocation);
+  const lastLocation = useRef(readLocation());
 
   useEffect(() => {
     function onPopState() {
+      if (
+        !window.dispatchEvent(
+          new Event("catalog-before-leave", { cancelable: true }),
+        )
+      ) {
+        const previous = lastLocation.current;
+        window.history.pushState(null, "", previous.pathname + previous.search);
+        return;
+      }
+      lastLocation.current = readLocation();
       setLocation(readLocation());
     }
 
@@ -118,6 +136,12 @@ function useNavigation() {
   }, []);
 
   function navigate(href, { replace = false } = {}) {
+    if (
+      !window.dispatchEvent(
+        new Event("catalog-before-leave", { cancelable: true }),
+      )
+    )
+      return;
     const next = new URL(href, window.location.origin);
 
     if (next.origin !== window.location.origin) {
@@ -127,9 +151,7 @@ function useNavigation() {
 
     const target = `${next.pathname}${next.search}${next.hash}`;
     const current =
-      window.location.pathname +
-      window.location.search +
-      window.location.hash;
+      window.location.pathname + window.location.search + window.location.hash;
 
     if (target !== current) {
       if (replace) {
@@ -139,6 +161,7 @@ function useNavigation() {
       }
     }
 
+    lastLocation.current = readLocation();
     setLocation(readLocation());
   }
 
@@ -196,9 +219,7 @@ function parseRoute(pathname) {
   const [, resource, identifier, edit] = match;
 
   if (resource === "staff" || resource === "seo") {
-    return identifier
-      ? { type: "not-found" }
-      : { type: resource, resource };
+    return identifier ? { type: "not-found" } : { type: resource, resource };
   }
 
   if (!identifier) {
@@ -206,9 +227,7 @@ function parseRoute(pathname) {
   }
 
   if (identifier === "new") {
-    return edit
-      ? { type: "not-found" }
-      : { type: "create", resource };
+    return edit ? { type: "not-found" } : { type: "create", resource };
   }
 
   return {
@@ -266,8 +285,8 @@ function useApi(path) {
           const error = new Error(
             typeof data?.detail === "string"
               ? data.detail
-              : data?.error?.message ??
-                  `دریافت اطلاعات ناموفق بود؛ کد ${response.status}`,
+              : (data?.error?.message ??
+                  `دریافت اطلاعات ناموفق بود؛ کد ${response.status}`),
           );
 
           error.status = response.status;
@@ -339,7 +358,7 @@ function Value({ name, value }) {
           <div
             key={
               item !== null && typeof item === "object"
-                ? item.id ?? index
+                ? (item.id ?? index)
                 : index
             }
             style={{
@@ -352,7 +371,7 @@ function Value({ name, value }) {
             {item !== null && typeof item === "object" ? (
               <Record data={item} />
             ) : (
-              labels[item] ?? display(item)
+              (labels[item] ?? display(item))
             )}
           </div>
         ))}
@@ -366,10 +385,8 @@ function Value({ name, value }) {
 
   const imageUrl =
     typeof value === "string" &&
-    (
-      (value.startsWith("/") && !value.startsWith("//")) ||
-      /^https?:\/\//i.test(value)
-    );
+    ((value.startsWith("/") && !value.startsWith("//")) ||
+      /^https?:\/\//i.test(value));
 
   if (name === "image" && imageUrl) {
     return (
@@ -408,7 +425,7 @@ function Record({ data, exclude = [] }) {
   return (
     <dl style={{ margin: 0 }}>
       {Object.entries(data)
-        .filter(([name]) => !exclude.includes(name))
+        .filter(([name]) => !exclude.includes(name) && !name.endsWith("_html"))
         .map(([name, value]) => (
           <div
             key={name}
@@ -471,17 +488,33 @@ function Unavailable({ navigate, message }) {
 /* Resource list */
 
 function ResourceList(props) {
-  return props.resource.key === "categories"
-    ? <CategoryManager {...props} />
-    : <GenericResourceList {...props} />;
+  if (props.resource.key === "footer")
+    return <FooterManager resource={props.resource} />;
+  if (props.resource.key === "customer-operations")
+    return <CustomerOperations resource={props.resource} />;
+
+  if (["brands", "attributes"].includes(props.resource.key))
+    return (
+      <LibraryManager
+        key={props.resource.key}
+        kind={props.resource.key}
+        resource={props.resource}
+      />
+    );
+  if (props.resource.key === "banners")
+    return <BannerManager resource={props.resource} />;
+  if (props.resource.key === "appearance")
+    return <AppearanceManager resource={props.resource} />;
+  if (props.resource.key === "pages")
+    return <PageManager resource={props.resource} revision={props.revision} />;
+  return props.resource.key === "categories" ? (
+    <CategoryManager {...props} />
+  ) : (
+    <GenericResourceList {...props} />
+  );
 }
 
-function GenericResourceList({
-  resource,
-  revision,
-  filters,
-  navigate,
-}) {
+function GenericResourceList({ resource, revision, filters, navigate }) {
   const base = `/dashboard/${resource.key}`;
   const query = listQuery(filters.page, filters.search);
 
@@ -495,10 +528,7 @@ function GenericResourceList({
 
   const canCreate =
     resource.capabilities?.add &&
-    (
-      resource.key === "products" ||
-      CREATABLE.includes(resource.key)
-    );
+    (resource.key === "products" || CREATABLE.includes(resource.key));
 
   function submitSearch(event) {
     event.preventDefault();
@@ -528,16 +558,12 @@ function GenericResourceList({
               navigate={navigate}
               className="button primary"
             >
-              {resource.key === "products"
-                ? "+ افزودن محصول"
-                : "+ افزودن"}
+              {resource.key === "products" ? "+ افزودن محصول" : "+ افزودن"}
             </PageLink>
           )}
 
           <span className="counter">
-            {list.data
-              ? `${display(list.data.count)} رکورد`
-              : "در حال دریافت"}
+            {list.data ? `${display(list.data.count)} رکورد` : "در حال دریافت"}
           </span>
         </div>
       </div>
@@ -566,9 +592,7 @@ function GenericResourceList({
         </button>
       </form>
 
-      {list.loading && (
-        <p role="status">در حال دریافت اطلاعات…</p>
-      )}
+      {list.loading && <p role="status">در حال دریافت اطلاعات…</p>}
 
       {list.error && <ErrorMessage error={list.error} />}
 
@@ -579,7 +603,9 @@ function GenericResourceList({
               <thead>
                 <tr>
                   {resource.columns.map(([key, label]) => (
-                    <th key={key} scope="col">{label}</th>
+                    <th key={key} scope="col">
+                      {label}
+                    </th>
                   ))}
                   <th scope="col">عملیات</th>
                 </tr>
@@ -589,7 +615,19 @@ function GenericResourceList({
                 {list.data.results.map((row) => (
                   <tr key={row.id}>
                     {resource.columns.map(([key]) => (
-                      <td key={key}>{display(row[key])}</td>
+                      <td key={key}>
+                        {resource.key === "products" &&
+                        key === "price" &&
+                        row.catalog_summary?.has_variants
+                          ? row.catalog_summary.min_price == null
+                            ? "بدون قیمت فعال"
+                            : `${row.catalog_summary.min_price !== row.catalog_summary.max_price ? "از " : ""}${display(row.catalog_summary.min_price)}`
+                          : resource.key === "products" &&
+                              key === "stock" &&
+                              row.catalog_summary
+                            ? display(row.catalog_summary.total_stock)
+                            : display(row[key])}
+                      </td>
                     ))}
 
                     <td>
@@ -638,10 +676,7 @@ function GenericResourceList({
               disabled={!list.data.previous}
               onClick={() =>
                 navigate(
-                  `${base}${listQuery(
-                    filters.page - 1,
-                    filters.search,
-                  )}`,
+                  `${base}${listQuery(filters.page - 1, filters.search)}`,
                 )
               }
             >
@@ -656,10 +691,7 @@ function GenericResourceList({
               disabled={!list.data.next}
               onClick={() =>
                 navigate(
-                  `${base}${listQuery(
-                    filters.page + 1,
-                    filters.search,
-                  )}`,
+                  `${base}${listQuery(filters.page + 1, filters.search)}`,
                 )
               }
             >
@@ -704,9 +736,7 @@ function ProductImageGrid({ images = [] }) {
               />
 
               {image.is_primary && (
-                <span className="product-image-badge">
-                  تصویر اصلی
-                </span>
+                <span className="product-image-badge">تصویر اصلی</span>
               )}
             </a>
           ))}
@@ -716,7 +746,27 @@ function ProductImageGrid({ images = [] }) {
   );
 }
 
-function ResourceRecord({
+function ResourceRecord(props) {
+  if (props.resource.key === "products" && props.resource.capabilities?.change)
+    return (
+      <ProductWorkspace
+        key={props.route.id}
+        productId={Number(props.route.id)}
+        onClose={() => props.navigate("/dashboard/products")}
+      />
+    );
+  if (["brands", "attributes"].includes(props.resource.key))
+    return (
+      <LibraryManager
+        key={`${props.resource.key}-${props.route.id}`}
+        kind={props.resource.key}
+        resource={props.resource}
+        initialId={Number(props.route.id)}
+      />
+    );
+  return <LegacyResourceRecord {...props} />;
+}
+function LegacyResourceRecord({
   resource,
   route,
   revision,
@@ -731,12 +781,9 @@ function ResourceRecord({
   const isProduct = resource.key === "products";
 
   const canEdit =
-    resource.capabilities?.change &&
-    EDITABLE.includes(resource.key);
+    resource.capabilities?.change && EDITABLE.includes(resource.key);
 
-  const detail = useApi(
-    `${resource.key}/${route.id}/?refresh=${revision}`,
-  );
+  const detail = useApi(`${resource.key}/${route.id}/?refresh=${revision}`);
 
   if (editing && !canEdit) {
     return (
@@ -799,6 +846,12 @@ function ResourceRecord({
             onSaved={() => onSaved(detailHref)}
           />
 
+          {resource.key === "categories" && (
+            <CategoryRules
+              key={`catalog-category-${detail.data.id}`}
+              categoryId={detail.data.id}
+            />
+          )}
           {isProduct && (
             <section className="card" style={{ marginTop: 22 }}>
               <ProductGallery
@@ -818,11 +871,9 @@ function ResourceRecord({
               <h2>{recordName}</h2>
             </div>
 
-{resource.key !== "categories" && (
-  <span className="counter">
-    شناسه: {display(detail.data.id)}
-  </span>
-)}
+            {resource.key !== "categories" && (
+              <span className="counter">شناسه: {display(detail.data.id)}</span>
+            )}
           </div>
 
           {isProduct && canEdit && (
@@ -833,21 +884,19 @@ function ResourceRecord({
             />
           )}
 
-          {isProduct && (
-            <ProductImageGrid images={detail.data.images ?? []} />
-          )}
+          {isProduct && <ProductImageGrid images={detail.data.images ?? []} />}
 
-{resource.key === "categories" ? (
-  <CategoryDetails
-    data={detail.data}
-    navigate={navigate}
-  />
-) : (
-  <Record
-    data={detail.data}
-    exclude={isProduct ? ["images"] : []}
-  />
-)}
+          {resource.key === "categories" && resource.capabilities?.change && (
+            <CategoryRules
+              key={`catalog-category-${detail.data.id}`}
+              categoryId={detail.data.id}
+            />
+          )}
+          {resource.key === "categories" ? (
+            <CategoryDetails data={detail.data} navigate={navigate} />
+          ) : (
+            <Record data={detail.data} exclude={isProduct ? ["images"] : []} />
+          )}
         </section>
       )}
     </>
@@ -856,12 +905,27 @@ function ResourceRecord({
 
 /* Resource creation */
 
-function ResourceCreate({
-  resource,
-  query,
-  navigate,
-  onSaved,
-}) {
+function ResourceCreate(props) {
+  if (!props.resource.capabilities?.add)
+    return <Unavailable navigate={props.navigate} />;
+  if (props.resource.key === "products")
+    return (
+      <ProductWorkspace
+        key="new-product"
+        onClose={() => props.navigate("/dashboard/products")}
+      />
+    );
+  if (["brands", "attributes"].includes(props.resource.key))
+    return (
+      <LibraryManager
+        kind={props.resource.key}
+        resource={props.resource}
+        initialCreate
+      />
+    );
+  return <LegacyResourceCreate {...props} />;
+}
+function LegacyResourceCreate({ resource, query, navigate, onSaved }) {
   const listHref = `/dashboard/${resource.key}${query}`;
   const isProduct = resource.key === "products";
 
@@ -886,10 +950,7 @@ function ResourceCreate({
       </PageActions>
 
       {isProduct ? (
-        <ProductCreate
-          onClose={() => navigate(listHref)}
-          onSaved={() => onSaved(listHref)}
-        />
+        <ProductWorkspace onClose={() => navigate(listHref)} />
       ) : (
         <Editor
           resource={resource}
@@ -921,9 +982,7 @@ export default function App({ onLogout }) {
     (item) => item.key !== "addresses",
   );
 
-  const current = resources.find(
-    (item) => item.key === route.resource,
-  );
+  const current = resources.find((item) => item.key === route.resource);
 
   let title = "صفحهٔ نخست";
 
@@ -990,17 +1049,13 @@ export default function App({ onLogout }) {
           <p className="eyebrow">دیجی‌شاپ</p>
           <h1>پنل مدیریت</h1>
 
-          {index.loading && (
-            <p role="status">در حال اتصال به Backend…</p>
-          )}
+          {index.loading && <p role="status">در حال اتصال به Backend…</p>}
 
           {index.error && (
             <>
               <ErrorMessage error={index.error} />
 
-              {forbidden && (
-                <p>با حساب مجاز وارد بخش مدیریت شوید.</p>
-              )}
+              {forbidden && <p>با حساب مجاز وارد بخش مدیریت شوید.</p>}
 
               <PageActions>
                 <button
@@ -1020,9 +1075,7 @@ export default function App({ onLogout }) {
                 </button>
               </PageActions>
 
-              <p className="muted">
-                هر دو سایت را با localhost باز کن.
-              </p>
+              <p className="muted">هر دو سایت را با localhost باز کن.</p>
             </>
           )}
         </section>
@@ -1030,19 +1083,14 @@ export default function App({ onLogout }) {
     );
   }
 
-  const username =
-    index.data.user.full_name?.trim() || "مدیر فروشگاه";
+  const username = index.data.user.full_name?.trim() || "مدیر فروشگاه";
 
   const validSection = Boolean(current);
 
   return (
     <div className="app" dir="rtl" lang="fa">
       <aside className="sidebar">
-        <PageLink
-          className="brand"
-          href="/dashboard"
-          navigate={go}
-        >
+        <PageLink className="brand" href="/dashboard" navigate={go}>
           <span className="brand-mark">D</span>
           <span>
             دیجی‌شاپ
@@ -1056,12 +1104,8 @@ export default function App({ onLogout }) {
           <PageLink
             href="/dashboard"
             navigate={go}
-            className={`nav-item ${
-              route.type === "home" ? "active" : ""
-            }`}
-            aria-current={
-              route.type === "home" ? "page" : undefined
-            }
+            className={`nav-item ${route.type === "home" ? "active" : ""}`}
+            aria-current={route.type === "home" ? "page" : undefined}
           >
             <span aria-hidden="true">◫</span>
             صفحهٔ نخست
@@ -1075,9 +1119,7 @@ export default function App({ onLogout }) {
               className={`nav-item ${
                 current?.key === item.key ? "active" : ""
               }`}
-              aria-current={
-                current?.key === item.key ? "page" : undefined
-              }
+              aria-current={current?.key === item.key ? "page" : undefined}
             >
               {item.label}
               <small style={{ marginInlineStart: "auto" }}>
@@ -1093,9 +1135,7 @@ export default function App({ onLogout }) {
         </div>
 
         <div className="user-card">
-          <span className="avatar">
-            {username.charAt(0) || "م"}
-          </span>
+          <span className="avatar">{username.charAt(0) || "م"}</span>
           <div>
             <strong>{username}</strong>
             <small>حساب مدیریت</small>
@@ -1105,9 +1145,7 @@ export default function App({ onLogout }) {
 
       <main className="main">
         <header className="topbar">
-          <span className="breadcrumb">
-            مدیریت / {title}
-          </span>
+          <span className="breadcrumb">مدیریت / {title}</span>
 
           <div
             style={{
@@ -1116,19 +1154,11 @@ export default function App({ onLogout }) {
               gap: 10,
             }}
           >
-            <button
-              type="button"
-              className="button ghost"
-              onClick={onLogout}
-            >
+            <button type="button" className="button ghost" onClick={onLogout}>
               خروج از حساب مدیریت
             </button>
 
-            <button
-              type="button"
-              className="button primary"
-              onClick={refresh}
-            >
+            <button type="button" className="button primary" onClick={refresh}>
               تازه‌سازی
             </button>
           </div>
@@ -1138,11 +1168,7 @@ export default function App({ onLogout }) {
           <div className="page-heading">
             <div>
               <p className="eyebrow">مدیریت فروشگاه</p>
-              <h1
-                ref={headingRef}
-                tabIndex={-1}
-                style={{ outline: "none" }}
-              >
+              <h1 ref={headingRef} tabIndex={-1} style={{ outline: "none" }}>
                 {title}
               </h1>
             </div>
@@ -1198,18 +1224,17 @@ export default function App({ onLogout }) {
             />
           )}
 
-          {["detail", "edit"].includes(route.type) &&
-            validSection && (
-              <ResourceRecord
-                key={`${current.key}-${route.id}-${route.type}`}
-                resource={current}
-                route={route}
-                revision={revision}
-                query={query}
-                navigate={go}
-                onSaved={handleSaved}
-              />
-            )}
+          {["detail", "edit"].includes(route.type) && validSection && (
+            <ResourceRecord
+              key={`${current.key}-${route.id}-${route.type}`}
+              resource={current}
+              route={route}
+              revision={revision}
+              query={query}
+              navigate={go}
+              onSaved={handleSaved}
+            />
+          )}
 
           {(route.type === "not-found" ||
             (route.type !== "home" && !validSection)) && (

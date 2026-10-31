@@ -1,0 +1,178 @@
+.ux-select {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  direction: rtl;
+  --ux-primary: var(--sf-blue, #315bea);
+}
+
+.ux-select:focus-within {
+  z-index: 40;
+}
+
+.ux-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 46px;
+  padding: 11px 13px;
+  border: 1px solid #dce1ec;
+  border-radius: 9px;
+  background: #fff;
+  color: #41495b;
+  font: inherit;
+  font-size: 12px;
+  text-align: right;
+  cursor: pointer;
+}
+
+.ux-select-trigger > span:first-child {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ux-select-trigger[aria-expanded="true"] {
+  border-color: var(--ux-primary);
+  box-shadow: 0 0 0 2px #eef1f8;
+}
+
+.ux-select-trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ux-select-popup {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  left: 0;
+  z-index: 100;
+  min-width: 220px;
+  overflow: hidden;
+  border: 1px solid #e1e5ee;
+  border-radius: 11px;
+  background: #fff;
+  box-shadow: 0 12px 35px rgb(25 40 75 / 14%);
+}
+
+.ux-select-search {
+  padding: 10px;
+  border-bottom: 1px solid #eef0f5;
+}
+
+.ux-select .ux-select-search input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 38px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid #e5e8f0;
+  border-radius: 7px;
+  background: #f7f8fb;
+  color: #41495b;
+  box-shadow: none;
+  font: inherit;
+  font-size: 12px;
+}
+
+.ux-select-options {
+  max-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.ux-select-options > button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 43px;
+  padding: 11px 13px;
+  border: 0;
+  border-bottom: 1px solid #f1f3f7;
+  border-radius: 0;
+  background: #fff;
+  color: #50596c;
+  font: inherit;
+  text-align: right;
+  cursor: pointer;
+}
+
+.ux-select-options strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.8;
+}
+
+.ux-select-options small {
+  display: block;
+  margin-top: 4px;
+  color: #939bad;
+  font-size: 10px;
+  line-height: 1.9;
+}
+
+.ux-select-options > button:hover {
+  background: #f7f8fb;
+}
+
+.ux-select-options > button.is-selected {
+  background: #f1f4fb;
+  color: var(--ux-primary);
+}
+
+.ux-select-check {
+  flex-shrink: 0;
+  width: 17px;
+  font-weight: 700;
+}
+
+.ux-select button:focus-visible,
+.ux-select input:focus-visible {
+  outline: 2px solid var(--ux-primary);
+  outline-offset: -2px;
+}
+
+.ux-select-options > button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ux-select-empty {
+  padding: 16px;
+  color: #9098aa;
+  font-size: 12px;
+}
+
+.sf-filters .sf-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  flex: 1;
+}
+
+.sf-filter-field > span {
+  color: #8792a8;
+  font-size: 10px;
+}
+
+@media (max-width: 760px) {
+  .sf-filters .sf-filter-field {
+    flex-basis: 40%;
+  }
+
+  .ux-select-popup {
+    min-width: 0;
+  }
+
+  .ux-select-options {
+    max-height: 220px;
+  }
+}

@@ -34,6 +34,10 @@ export default function categorySEO(backend) {
         let head = `<title>${escape(data.name)} | دیجی‌شاپ</title><link rel="canonical" href="${escape(data.url)}"><meta name="description" content="${escape(data.description || data.name)}">`;
         const structured = { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: (data.breadcrumbs || []).map((part, index) => ({ "@type": "ListItem", position: index + 1, name: part.name, item: part.url })) };
         head += '<script type="application/ld+json">' + JSON.stringify(structured).replace(/</g, "\\u003c") + '</script>';
+        if (data.description?.trim()) {
+          const content = `<section class="sf-category-description"><h2>دربارهٔ ${escape(data.name)}</h2><p style="white-space:pre-wrap">${escape(data.description)}</p></section>`;
+          html = html.replace('<div id="root"></div>', '<div id="root">' + content + '</div>');
+        }
         return html.replace(/<title>[\s\S]*?<\/title>/i, "").replace("</head>", head + "</head>");
       } catch { return html; }
     },

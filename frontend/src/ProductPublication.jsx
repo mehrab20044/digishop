@@ -1,11 +1,9 @@
+import DashboardSelect from "./components/DashboardSelect";
 import { managementFetch } from "./managementAuth";
 import { useState } from "react";
 
 function initialMode(product) {
-  if (
-    product.status === "draft" ||
-    product.status === "پیش‌نویس"
-  ) {
+  if (product.status === "draft" || product.status === "پیش‌نویس") {
     return "draft";
   }
 
@@ -24,10 +22,7 @@ function messageFrom(data) {
   return data ? JSON.stringify(data) : "پاسخ سرور معتبر نیست.";
 }
 
-export default function ProductPublication({
-  product,
-  onSaved,
-}) {
+export default function ProductPublication({ product, onSaved }) {
   const [mode, setMode] = useState(() => initialMode(product));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -45,14 +40,11 @@ export default function ProductPublication({
     };
 
     try {
-      const csrfResponse = await managementFetch(
-        "/api/v1/owner/csrf/",
-        {
-          credentials: "same-origin",
-          headers: { Accept: "application/json" },
-          cache: "no-store",
-        },
-      );
+      const csrfResponse = await managementFetch("/api/v1/owner/csrf/", {
+        credentials: "same-origin",
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+      });
 
       const csrf = await csrfResponse.json().catch(() => null);
 
@@ -114,7 +106,7 @@ export default function ProductPublication({
         <label className="field">
           <span>وضعیت جدید محصول</span>
 
-          <select
+          <DashboardSelect
             value={mode}
             disabled={busy}
             onChange={(event) => setMode(event.target.value)}
@@ -122,12 +114,12 @@ export default function ProductPublication({
             <option value="draft">پیش‌نویس</option>
             <option value="published">منتشرشده و فعال</option>
             <option value="inactive">غیرفعال</option>
-          </select>
+          </DashboardSelect>
         </label>
 
         <p className="muted" style={{ margin: "14px 0" }}>
-          انتشار نیازمند تصویر اصلی و قیمت معتبر مطابق
-          قوانین Backend است. غیرفعال‌کردن، محصول را حذف نمی‌کند.
+          انتشار نیازمند تصویر اصلی و قیمت معتبر مطابق قوانین Backend است.
+          غیرفعال‌کردن، محصول را حذف نمی‌کند.
         </p>
 
         {error && (

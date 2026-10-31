@@ -1,5 +1,10 @@
 from django.urls import path
 
+from dashboard.api.v1.catalog import (
+    AttributeDefinitionsView,
+    CategorySchemaView,
+    ProductCatalogView,
+)
 from dashboard.api.v1.gallery import ProductGalleryView
 from dashboard.api.v1.product_create import ProductCreateView
 from dashboard.api.v1.staff import (
@@ -11,6 +16,13 @@ from dashboard.api.v1.views import (
     DashboardIndexView,
     DashboardListView,
 )
+from dashboard.api.v1.workspace import (
+    CategorySpecificationView,
+    CombinationPreviewView,
+    WorkspaceBrandView,
+    WorkspaceChoicesView,
+    WorkspaceProductView,
+)
 from dashboard.api.v1.write_views import (
     DashboardCreateView,
     DashboardUpdateView,
@@ -21,6 +33,36 @@ from seo.dashboard_api import SEOAccessView, SEODashboardView
 app_name = "owner_dashboard"
 
 urlpatterns = [
+    path("workspace/choices/", WorkspaceChoicesView.as_view()),
+    path("workspace/products/", WorkspaceProductView.as_view()),
+    path("workspace/products/<int:pk>/", WorkspaceProductView.as_view()),
+    path("workspace/combinations/preview/", CombinationPreviewView.as_view()),
+    path(
+        "workspace/categories/<int:pk>/specifications/",
+        CategorySpecificationView.as_view(),
+    ),
+    path("workspace/brands/", WorkspaceBrandView.as_view()),
+    path("workspace/brands/<int:pk>/", WorkspaceBrandView.as_view()),
+    path(
+        "catalog/attributes/<int:pk>/",
+        AttributeDefinitionsView.as_view(),
+        name="attribute-definition-edit",
+    ),
+    path(
+        "catalog/attributes/",
+        AttributeDefinitionsView.as_view(),
+        name="attribute-definitions",
+    ),
+    path(
+        "catalog/categories/<int:pk>/",
+        CategorySchemaView.as_view(),
+        name="category-schema",
+    ),
+    path(
+        "catalog/products/<int:pk>/",
+        ProductCatalogView.as_view(),
+        name="product-catalog",
+    ),
     path(
         "",
         DashboardIndexView.as_view(),
@@ -31,7 +73,6 @@ urlpatterns = [
         OwnerCSRFView.as_view(),
         name="csrf",
     ),
-
     # Specific routes must precede generic resource routes.
     path(
         "staff/",
@@ -63,7 +104,6 @@ urlpatterns = [
         ProductGalleryView.as_view(),
         name="product-gallery",
     ),
-
     # Generic routes come last.
     path(
         "<slug:resource>/create/",

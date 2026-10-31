@@ -76,7 +76,7 @@ def add_item(cart, data):
         # Preserve the previous price until the user acknowledges it with PATCH.
         item.save(update_fields=['quantity'])
     else:
-        CartItem.objects.create(cart=cart, product=product, variant=variant, selection_key=key, product_name=product.name, variant_name=' / '.join(filter(None, [variant.color, variant.storage])) if variant else '', had_variant=bool(variant), quantity=quantity, price_seen=price)
+        CartItem.objects.create(cart=cart, product=product, variant=variant, selection_key=key, product_name=product.name, variant_name=variant.display_name if variant else '', had_variant=bool(variant), quantity=quantity, price_seen=price)
     CartOperation.objects.create(cart=cart, request_id=data['request_id'], fingerprint=fingerprint)
     touch(cart)
 
@@ -92,7 +92,7 @@ def update_item(cart, item_id, quantity):
         raise ValidationError({'quantity': f'فقط {min(stock, 99)} عدد موجود است.'})
     item.quantity = quantity
     item.price_seen = price
-    item.variant_name = ' / '.join(filter(None, [variant.color, variant.storage])) if variant else ''
+    item.variant_name = variant.display_name if variant else ''
     item.save(update_fields=['quantity', 'price_seen', 'variant_name'])
     touch(cart)
 
@@ -114,7 +114,7 @@ def snapshot(cart, request):
                 issues.append('این انتخاب دیگر قابل خرید نیست؛ حذفش کن یا تنوع دیگری انتخاب کن.')
             elif item.quantity > stock:
                 issues.append(f'موجودی کاهش یافته؛ فقط {stock} عدد باقی مانده است.')
-            variant_name = ' / '.join(filter(None, [variant.color, variant.storage])) if usable and variant else item.variant_name
+            variant_name = variant.display_name if usable and variant else item.variant_name
             selection_changed = bool(usable and variant and variant_name != item.variant_name)
             if selection_changed:
                 issues.append('رنگ یا حافظهٔ این تنوع تغییر کرده؛ انتخاب جدید را بررسی و تأیید کن.')

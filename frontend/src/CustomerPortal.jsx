@@ -11,25 +11,31 @@ import {
 
 function customerDestination() {
   const next = new URLSearchParams(window.location.search).get("next");
-  if (!next) return "/";
+  if (!next) return "/account";
   try {
     const url = new URL(next, window.location.origin);
     const path = url.pathname.replace(/\/+$/, "") || "/";
-    if (url.origin === window.location.origin && (path === "/" || path === "/cart" || /^\/products(?:\/[1-9][0-9]*)?$/.test(path))) {
+    if (
+      url.origin === window.location.origin &&
+      (path === "/" ||
+        path === "/cart" ||
+        path === "/checkout" ||
+        /^\/account(?:\/orders(?:\/[0-9a-f-]{36})?)?$/.test(path) ||
+        /^\/orders(?:\/[0-9a-f-]{36})?$/.test(path) ||
+        /^\/products(?:\/[1-9][0-9]*|\/category\/[^?#]+)?$/.test(path))
+    ) {
       return path + url.search;
     }
-  } catch { /* Ignore invalid destinations. */ }
-  return "/";
+  } catch {
+    /* Ignore invalid destinations. */
+  }
+  return "/account";
 }
 
 function normalizeDigits(value) {
   return value
-    .replace(/[۰-۹]/g, (digit) =>
-      String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)),
-    )
-    .replace(/[٠-٩]/g, (digit) =>
-      String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)),
-    );
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
 }
 
 function normalizePhone(value) {
@@ -69,10 +75,7 @@ export default function CustomerPortal() {
 
   const locked = useRef(false);
 
-  const remaining = Math.max(
-    0,
-    Math.ceil((retryAt - now) / 1000),
-  );
+  const remaining = Math.max(0, Math.ceil((retryAt - now) / 1000));
 
   useEffect(() => {
     document.title = accountPage
@@ -137,9 +140,7 @@ export default function CustomerPortal() {
     const wait = Number(seconds);
 
     setNow(time);
-    setRetryAt(
-      time + (Number.isFinite(wait) && wait > 0 ? wait : 60) * 1000,
-    );
+    setRetryAt(time + (Number.isFinite(wait) && wait > 0 ? wait : 60) * 1000);
   }
 
   function showError(err) {
@@ -284,11 +285,7 @@ export default function CustomerPortal() {
           )}
 
           {error && (
-            <div
-              className="signin-error"
-              id="signin-error"
-              role="alert"
-            >
+            <div className="signin-error" id="signin-error" role="alert">
               {error}
             </div>
           )}
@@ -326,8 +323,8 @@ export default function CustomerPortal() {
               <span className="signin-step">شروع خرید، با حساب تو</span>
               <h1>ورود | ثبت‌نام</h1>
               <p className="signin-description">
-                شماره موبایلت را وارد کن.
-                اگر حساب نداشته باشی، بعد از تأیید شماره ساخته می‌شود.
+                شماره موبایلت را وارد کن. اگر حساب نداشته باشی، بعد از تأیید
+                شماره ساخته می‌شود.
               </p>
 
               <form onSubmit={sendCode}>
@@ -426,8 +423,7 @@ export default function CustomerPortal() {
               <div className="signin-resend">
                 {remaining > 0 ? (
                   <span>
-                    دریافت کد جدید تا{" "}
-                    <bdi>{formatTime(remaining)}</bdi>
+                    دریافت کد جدید تا <bdi>{formatTime(remaining)}</bdi>
                   </span>
                 ) : (
                   <button
@@ -444,9 +440,7 @@ export default function CustomerPortal() {
           )}
         </section>
 
-        <p className="signin-footer">
-          کد ورود را در اختیار دیگران قرار نده.
-        </p>
+        <p className="signin-footer">کد ورود را در اختیار دیگران قرار نده.</p>
       </div>
     </main>
   );

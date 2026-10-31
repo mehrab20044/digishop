@@ -24,6 +24,8 @@ EDIT_FIELDS = {
         "short_description",
         "long_description",
         "gallery_description",
+            "long_description_html",
+            "gallery_description_html",
         "status",
         "is_active",
     ],

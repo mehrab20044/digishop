@@ -21,12 +21,10 @@ from products.models import (
     Category,
     Product,
 )
+from products.services.catalog_workflow import catalog_summary
 from seo.models import SEOSettings
 
 User = get_user_model()
-
-
-
 
 
 class DashboardPagination(PageNumberPagination):
@@ -118,10 +116,7 @@ def file_url(field):
 
 
 def pick(instance, fields):
-    return {
-        field: getattr(instance, field)
-        for field in fields
-    }
+    return {field: getattr(instance, field) for field in fields}
 
 
 def address_data(address):
@@ -162,6 +157,7 @@ def summary_data(resource, obj):
             "category": obj.category.name,
             "brand": obj.brand.name if obj.brand else None,
             "status": obj.get_status_display(),
+            "catalog_summary": catalog_summary(obj),
         }
 
     if resource == "users":
@@ -213,6 +209,8 @@ def detail_data(resource, obj):
                     "short_description",
                     "long_description",
                     "gallery_description",
+                    "long_description_html",
+                    "gallery_description_html",
                     "created_at",
                 ],
             ),
@@ -267,10 +265,7 @@ def detail_data(resource, obj):
 
         related = list(obj.related_categories.all())
 
-        data["related_category_ids"] = [
-            category.pk
-            for category in related
-        ]
+        data["related_category_ids"] = [category.pk for category in related]
         data["related_categories"] = [
             {
                 "id": category.pk,
@@ -317,20 +312,15 @@ def detail_data(resource, obj):
         )
 
         data["profile_status"] = get_profile_status(obj)
-        data["addresses"] = [
-            address_data(address)
-            for address in obj.addresses.all()
-        ]
+        data["addresses"] = [address_data(address) for address in obj.addresses.all()]
         data["groups"] = [
-            {"id": group.pk, "name": group.name}
-            for group in obj.groups.all()
+            {"id": group.pk, "name": group.name} for group in obj.groups.all()
         ]
         data["user_permissions"] = [
             {
                 "name": permission.name,
                 "codename": (
-                    f"{permission.content_type.app_label}."
-                    f"{permission.codename}"
+                    f"{permission.content_type.app_label}.{permission.codename}"
                 ),
             }
             for permission in obj.user_permissions.all()
@@ -344,8 +334,7 @@ def detail_data(resource, obj):
             {
                 "name": permission.name,
                 "codename": (
-                    f"{permission.content_type.app_label}."
-                    f"{permission.codename}"
+                    f"{permission.content_type.app_label}.{permission.codename}"
                 ),
             }
             for permission in obj.permissions.all()
@@ -355,13 +344,8 @@ def detail_data(resource, obj):
 
 
 def get_resource(request, resource):
-    if (
-        resource in {"users", "groups", "addresses"}
-        and not request.user.is_superuser
-    ):
-        raise PermissionDenied(
-            "مدیریت این بخش فعلاً فقط برای صاحب سایت مجاز است."
-        )
+    if resource in {"users", "groups", "addresses"} and not request.user.is_superuser:
+        raise PermissionDenied("مدیریت این بخش فعلاً فقط برای صاحب سایت مجاز است.")
 
     config = RESOURCES.get(resource)
 
@@ -421,7 +405,6 @@ class OwnerAPIView(APIView):
     http_method_names = ["get", "head", "options"]
 
 
-
 class DashboardIndexView(OwnerAPIView):
     def get(self, request):
         resources = []
@@ -445,24 +428,111 @@ class DashboardIndexView(OwnerAPIView):
             if not model_admin.has_view_permission(request):
                 continue
 
-            resources.append({
-                "key": key,
-                "label": config["label"],
-                "columns": config["columns"],
-                "count": model_admin.get_queryset(request).count(),
-                "capabilities": {
-                    "view": True,
-                    "add": (
-                        key in creatable
-                        and model_admin.has_add_permission(request)
-                    ),
-                    "change": (
-                        key in editable
-                        and model_admin.has_change_permission(request)
-                    ),
-                    "delete": False,
-                },
-            })
+            resources.append(
+                {
+                    "key": key,
+                    "label": config["label"],
+                    "columns": config["columns"],
+                    "count": model_admin.get_queryset(request).count(),
+                    "capabilities": {
+                        "view": True,
+                        "add": (
+                            key in creatable and model_admin.has_add_permission(request)
+                        ),
+                        "change": (
+                            key in editable
+                            and model_admin.has_change_permission(request)
+                        ),
+                        "delete": False,
+                    },
+                }
+            )
+
+        if user.has_perm("cms.view_page"):
+            from cms.models import Page
+
+            resources.append(
+                {
+                    "key": "pages",
+                    "label": "صفحه‌های سایت",
+                    "columns": [],
+                    "count": Page.objects.count(),
+                    "capabilities": {
+                        "view": True,
+                        "add": user.has_perm("cms.add_page"),
+                        "change": user.has_perm("cms.change_page"),
+                        "publish": user.has_perm("cms.publish_page"),
+                        "delete": False,
+                    },
+                }
+            )
+
+        if user.has_perm("cms.view_sitetheme"):
+            resources.append(
+                {
+                    "key": "appearance",
+                    "label": "ظاهر فروشگاه",
+                    "columns": [],
+                    "count": 1,
+                    "capabilities": {
+                        "view": True,
+                        "change": user.has_perm("cms.change_sitetheme"),
+                        "publish": user.has_perm("cms.publish_sitetheme"),
+                        "add": False,
+                        "delete": False,
+                    },
+                }
+            )
+
+        if user.has_perm("cms.view_bannerset"):
+            resources.append(
+                {
+                    "key": "banners",
+                    "label": "بنرهای فروشگاه",
+                    "columns": [],
+                    "count": 1,
+                    "capabilities": {
+                        "view": True,
+                        "change": user.has_perm("cms.change_bannerset"),
+                        "publish": user.has_perm("cms.publish_bannerset"),
+                        "add": False,
+                        "delete": False,
+                    },
+                }
+            )
+
+        for key, label, allowed, editable in [
+            (
+                "footer",
+                "فوتر فروشگاه",
+                user.has_perm("cms.view_sitefooter"),
+                user.has_perm("cms.change_sitefooter"),
+            ),
+            (
+                "customer-operations",
+                "سفارش‌ها و مرجوعی‌ها",
+                user.has_perm("orders.view_order"),
+                user.has_perm("orders.change_order"),
+            ),
+        ]:
+            if allowed:
+                from orders.models import Order
+
+                resources.append(
+                    {
+                        "key": key,
+                        "label": label,
+                        "columns": [],
+                        "count": 1 if key == "footer" else Order.objects.count(),
+                        "capabilities": {
+                            "view": True,
+                            "change": editable,
+                            "add": False,
+                            "delete": False,
+                            "view_returns": user.has_perm("orders.view_returnrequest"),
+                        },
+                    }
+                )
 
         seo_permissions = (
             "seo.view_seosettings",
@@ -471,51 +541,53 @@ class DashboardIndexView(OwnerAPIView):
         )
 
         if any(user.has_perm(item) for item in seo_permissions):
-            resources.append({
-                "key": "seo",
-                "label": "مدیریت SEO",
-                "columns": [],
-                "count": SEOSettings.objects.count(),
-                "capabilities": {
-                    "view": True,
-                    "add": False,
-                    "change": user.has_perm("seo.change_seosettings"),
-                    "delete": False,
-                },
-            })
+            resources.append(
+                {
+                    "key": "seo",
+                    "label": "مدیریت SEO",
+                    "columns": [],
+                    "count": SEOSettings.objects.count(),
+                    "capabilities": {
+                        "view": True,
+                        "add": False,
+                        "change": user.has_perm("seo.change_seosettings"),
+                        "delete": False,
+                    },
+                }
+            )
 
         if can_manage(user, "view"):
-            resources.append({
-                "key": "staff",
-                "label": "همکاران",
-                "columns": [],
-                "count": User.objects.filter(is_staff=True).count(),
-                "capabilities": {
-                    "view": True,
-                    "add": can_manage(user, "add"),
-                    "change": can_manage(user, "change"),
-                    "delete": False,
+            resources.append(
+                {
+                    "key": "staff",
+                    "label": "همکاران",
+                    "columns": [],
+                    "count": User.objects.filter(is_staff=True).count(),
+                    "capabilities": {
+                        "view": True,
+                        "add": can_manage(user, "add"),
+                        "change": can_manage(user, "change"),
+                        "delete": False,
+                    },
+                }
+            )
+
+        return Response(
+            {
+                "user": {
+                    "phone": user.phone,
+                    "username": user.phone,
+                    "full_name": user.get_full_name(),
                 },
-            })
-
-        return Response({
-            "user": {
-                "phone": user.phone,
-                "username": user.phone,
-                "full_name": user.get_full_name(),
-            },
-            "resources": resources,
-        })
-
+                "resources": resources,
+            }
+        )
 
 
 class DashboardListView(OwnerAPIView):
     def get(self, request, resource):
-        if (
-            resource not in RESOURCES
-            or not admin.site.is_registered(
-                RESOURCES[resource]["model"],
-            )
+        if resource not in RESOURCES or not admin.site.is_registered(
+            RESOURCES[resource]["model"],
         ):
             raise NotFound("این بخش در پنل فعال نیست.")
 
@@ -527,9 +599,11 @@ class DashboardListView(OwnerAPIView):
         search = request.query_params.get("search", "").strip()
 
         if len(search) > 150:
-            raise serializers.ValidationError({
-                "search": "جست‌وجو حداکثر ۱۵۰ کاراکتر باشد.",
-            })
+            raise serializers.ValidationError(
+                {
+                    "search": "جست‌وجو حداکثر ۱۵۰ کاراکتر باشد.",
+                }
+            )
 
         if search:
             queryset, use_distinct = model_admin.get_search_results(
@@ -548,19 +622,15 @@ class DashboardListView(OwnerAPIView):
             view=self,
         )
 
-        return paginator.get_paginated_response([
-            summary_data(resource, obj)
-            for obj in page
-        ])
+        return paginator.get_paginated_response(
+            [summary_data(resource, obj) for obj in page]
+        )
 
 
 class DashboardDetailView(OwnerAPIView):
     def get(self, request, resource, pk):
-        if (
-            resource not in RESOURCES
-            or not admin.site.is_registered(
-                RESOURCES[resource]["model"],
-            )
+        if resource not in RESOURCES or not admin.site.is_registered(
+            RESOURCES[resource]["model"],
         ):
             raise NotFound("این بخش در پنل فعال نیست.")
 

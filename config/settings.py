@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "orders",
     "seo",
     "payments.apps.PaymentsConfig",
+    "cms.apps.CmsConfig",
 ]
 
 MIDDLEWARE = [

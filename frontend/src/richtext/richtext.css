@@ -1,0 +1,235 @@
+.rt-editor{border:1px solid #dce3ea;border-radius:10px;overflow:hidden;background:#fff;color:#243444;font-size:14px;text-align:right;min-width:0;width:100%}.rt-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:5px;padding:10px;background:#f3f5f8;border-bottom:1px solid #dce3ea}.rt-toolbar button,.rt-toolbar select{font:12px Tahoma,Arial,sans-serif;border:1px solid #d7dfe7;background:#fff;color:#344b5c;border-radius:5px;padding:7px;min-height:32px;cursor:pointer;width:auto!important}.rt-toolbar button.is-active{background:#dceae5;border-color:#39826c;color:#13583f}.rt-toolbar button:disabled,.rt-toolbar select:disabled{opacity:.45;cursor:not-allowed}.rt-editable{padding:18px;min-height:240px;max-height:650px;overflow:auto;outline:none;line-height:2;overflow-wrap:anywhere;font:16px/2 Tahoma,Arial,sans-serif}.rt-editable p{margin:0 0 12px}.rt-editable h2,.rt-content h2{font-size:26px;margin:20px 0 12px}.rt-editable h3,.rt-content h3{font-size:22px;margin:18px 0 12px}.rt-editable h4,.rt-content h4{font-size:18px;margin:16px 0 10px}.rt-editable ul,.rt-editable ol,.rt-content ul,.rt-content ol{padding-inline-start:28px}.rt-editable blockquote,.rt-content blockquote{border-inline-start:4px solid var(--store-primary,#315bea);margin:16px 0;padding:12px 20px;background:var(--store-surface,#f4f6fa)}.rt-editable a,.rt-content a{color:var(--store-primary,#315bea);text-decoration:underline!important}.rt-help{display:block;padding:10px 14px;border-top:1px solid #edf0f4;color:#738190;font-size:11px}.rt-color{font-size:11px;display:flex;gap:4px;align-items:center}.rt-color input{width:28px!important;height:28px;padding:0;border:0;background:none}.rt-link{padding:12px;display:flex;gap:8px;align-items:end;background:#f8fafc}.rt-link label{flex:1;font-size:12px;display:grid;gap:6px}.rt-link input{width:100%;padding:8px;border:1px solid #d6dfe6;border-radius:6px}.rt-link button{padding:8px;border:1px solid #d6dfe6;border-radius:6px;background:#fff;font:12px Tahoma}.rt-error{padding:10px 14px;color:#9f3d33;background:#fff2ee}.rt-loading{padding:16px;color:#71808e}.rt-content{line-height:2.1;overflow-wrap:anywhere}.rt-content p{margin:0 0 16px!important;white-space:pre-wrap}.rt-content img{max-width:100%}.rt-content strong{font-weight:700}.rt-content ul{list-style:disc}.rt-content ol{list-style:decimal}.rt-plain{white-space:pre-wrap;line-height:2;overflow-wrap:anywhere}.sf-category-description{margin:40px 0 24px;padding:28px;border:1px solid var(--sf-line,#e3e8ef);background:var(--store-surface,#f5f7fa);border-radius:16px}.sf-category-description h2{font-size:22px;margin-bottom:16px}.sf-category-description p{white-space:pre-wrap;line-height:2.2;color:var(--store-text,#344557)}.rt-editor:focus-within{border-color:#6a92bc}.rt-toolbar :focus-visible{outline:3px solid #dcaa42;outline-offset:2px}@media(max-width:650px){.rt-toolbar{gap:4px;padding:8px}.rt-toolbar button,.rt-toolbar select{font-size:10px;padding:6px}.rt-editable{min-height:220px;padding:14px}.sf-category-description{padding:20px}.rt-link{flex-wrap:wrap}}
+
+/* Restore semantic formatting even under dashboard resets. */
+.rt-editor .rt-editable strong,.rt-content strong,.rt-content b{font-weight:700!important}.rt-editor .rt-editable em,.rt-content em,.rt-content i{font-style:italic!important}.rt-editor .rt-editable u,.rt-content u{text-decoration:underline!important}.rt-editor .rt-editable s,.rt-content s{text-decoration:line-through!important}.rt-editor .rt-editable ul{list-style:disc!important}.rt-editor .rt-editable ol{list-style:decimal!important}.rt-editor .rt-editable ul,.rt-editor .rt-editable ol{padding-inline-start:28px!important}.rt-editor .rt-editable li p{margin:0}.rt-editor-surface{cursor:text}.rt-editor .rt-editable:focus{outline:0}.rt-toolbar .rt-color{margin:0;display:flex;flex-direction:row;align-items:center}
+
+.rt-editable,.rt-content{font-synthesis:weight style;}
+/* قاب ویرایشگر */
+.rt-editor {
+  border: 1px solid #dce4ec;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 3px 14px rgb(15 23 42 / 4%);
+}
+
+.rt-editor:focus-within {
+  border-color: #218779;
+  box-shadow: 0 0 0 3px rgb(33 135 121 / 10%);
+}
+
+/* نوار ابزار */
+.rt-editor .rt-toolbar {
+  gap: 6px;
+  padding: 12px;
+  background: #f7f9fb;
+  border-bottom: 1px solid #e4eaf0;
+}
+
+.rt-editor .rt-toolbar button,
+.rt-editor .rt-toolbar select {
+  min-height: 36px;
+  margin: 0;
+  padding: 7px 11px;
+  border: 1px solid #dce4ec;
+  border-radius: 7px;
+  background: #fff;
+  color: #334155;
+  font: 12px/1.5 Tahoma, Arial, sans-serif;
+  box-shadow: none;
+  transition: background-color 150ms, border-color 150ms;
+}
+
+.rt-editor .rt-toolbar button:hover:not(:disabled),
+.rt-editor .rt-toolbar select:hover:not(:disabled) {
+  background: #edf5f3;
+  border-color: #8cbcaf;
+}
+
+.rt-editor .rt-toolbar button.is-active {
+  background: #176d60;
+  border-color: #176d60;
+  color: #fff;
+}
+
+.rt-editor .rt-toolbar :focus-visible {
+  outline: 2px solid #218779;
+  outline-offset: 2px;
+}
+
+/* انتخاب رنگ */
+.rt-editor .rt-color {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 9px;
+  border: 1px solid #dce4ec;
+  border-radius: 7px;
+  background: #fff;
+  color: #475569;
+}
+
+.rt-editor .rt-color input {
+  width: 24px !important;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* فضای نوشتن؛ فونت و اندازهٔ انتخابی متن حفظ می‌شود */
+.rt-editor .rt-editable {
+  min-height: 280px;
+  padding: 24px;
+  line-height: 2;
+  color: #243444;
+  background: #fff;
+  caret-color: #176d60;
+}
+
+.rt-editor .rt-editable ::selection {
+  background: #cce9df;
+}
+
+/* فرم لینک */
+.rt-editor .rt-link {
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 14px;
+  background: #f0f7f4;
+  border-bottom: 1px solid #dce8e2;
+}
+
+.rt-editor .rt-link label {
+  min-width: 180px;
+}
+
+.rt-editor .rt-link button {
+  min-height: 36px;
+  padding: 8px 14px;
+  border: 1px solid #cbdad3;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+/* راهنمای پایین */
+.rt-editor .rt-help {
+  padding: 12px 16px;
+  background: #fafcfd;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.9;
+}
+
+/* موبایل */
+@media (max-width: 650px) {
+  .rt-editor .rt-toolbar {
+    gap: 5px;
+    padding: 8px;
+  }
+
+  .rt-editor .rt-toolbar button,
+  .rt-editor .rt-toolbar select {
+    min-height: 36px;
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  .rt-editor .rt-editable {
+    min-height: 230px;
+    padding: 16px;
+  }
+}
+/* نوار ابزار جمع‌وجور */
+.rt-editor .rt-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  padding: 10px;
+  background: #f8fafc;
+}
+
+/* تمام دکمه‌های نوار، اندازهٔ یکسان دارند */
+.rt-editor .rt-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 36px;
+  width: 36px !important;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #475569;
+  font: 12px/1 Tahoma, Arial, sans-serif;
+  box-shadow: none;
+}
+
+.rt-editor .rt-toolbar button:hover:not(:disabled) {
+  border-color: #d5e2dd;
+  background: #e9f2ee;
+  color: #145c4d;
+}
+
+.rt-editor .rt-toolbar button.is-active {
+  border-color: #b4d6c9;
+  background: #dcefe6;
+  color: #115b43;
+}
+
+.rt-editor .rt-toolbar button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.rt-tool-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  direction: ltr;
+  font: 18px/1 Arial, sans-serif;
+}
+
+.rt-symbol-all {
+  font: 10px/1 Tahoma, sans-serif;
+}
+
+.rt-symbol-clear {
+  font: 15px/1 Georgia, serif;
+}
+
+/* فهرست‌های فونت، اندازه و نوع متن */
+.rt-editor .rt-toolbar select {
+  flex: 0 1 auto;
+  width: auto !important;
+  max-width: 160px;
+  height: 36px;
+  margin: 0;
+  padding: 0 9px;
+  border: 1px solid #dce4ec;
+  border-radius: 6px;
+  background: #fff;
+  color: #334155;
+  font: 12px Tahoma, Arial, sans-serif;
+}
+
+.rt-editor .rt-toolbar .rt-color {
+  min-height: 36px;
+  height: 36px;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.rt-editor .rt-toolbar :focus-visible {
+  outline: 2px solid #218779;
+  outline-offset: 2px;
+}

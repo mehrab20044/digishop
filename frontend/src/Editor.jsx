@@ -1,19 +1,12 @@
+import DashboardSelect from "./components/DashboardSelect";
+import RichTextEditor from "./richtext/RichTextEditor";
 import { useEffect, useRef, useState } from "react";
 
 import { managementFetch } from "./managementAuth";
 
-export const EDITABLE = [
-  "products",
-  "categories",
-  "brands",
-  "attributes",
-];
+export const EDITABLE = ["products", "categories", "brands", "attributes"];
 
-export const CREATABLE = [
-  "categories",
-  "brands",
-  "attributes",
-];
+export const CREATABLE = ["categories", "brands", "attributes"];
 
 const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -44,14 +37,14 @@ const productFields = [
     maxLength: 500,
   },
   {
-    name: "long_description",
+    name: "long_description_html",
     label: "توضیحات کامل",
-    type: "textarea",
+    type: "richtext",
   },
   {
-    name: "gallery_description",
+    name: "gallery_description_html",
     label: "توضیحات گالری",
-    type: "textarea",
+    type: "richtext",
   },
 ];
 
@@ -84,9 +77,7 @@ async function read(response) {
 }
 
 async function save(path, payload, method = "POST") {
-  const csrf = await read(
-    await managementFetch("/api/v1/owner/csrf/"),
-  );
+  const csrf = await read(await managementFetch("/api/v1/owner/csrf/"));
 
   return read(
     await managementFetch(`/api/v1/owner/${path}`, {
@@ -106,10 +97,9 @@ async function loadCategories(signal) {
 
   for (let page = 1; ; page += 1) {
     const data = await read(
-      await managementFetch(
-        `/api/v1/owner/categories/?page=${page}`,
-        { signal },
-      ),
+      await managementFetch(`/api/v1/owner/categories/?page=${page}`, {
+        signal,
+      }),
     );
 
     if (!Array.isArray(data.results)) {
@@ -189,10 +179,9 @@ function CategoryEditor({ initial, onClose, onSaved }) {
         const [items, record] = await Promise.all([
           loadCategories(controller.signal),
           id
-            ? managementFetch(
-                `/api/v1/owner/categories/${id}/`,
-                { signal: controller.signal },
-              ).then(read)
+            ? managementFetch(`/api/v1/owner/categories/${id}/`, {
+                signal: controller.signal,
+              }).then(read)
             : Promise.resolve(null),
         ]);
 
@@ -201,11 +190,7 @@ function CategoryEditor({ initial, onClose, onSaved }) {
         setCategories(items);
         setName(record?.name || "");
         setSlug(record?.slug || "");
-        setParentId(
-          record?.parent_id == null
-            ? ""
-            : String(record.parent_id),
-        );
+        setParentId(record?.parent_id == null ? "" : String(record.parent_id));
         setDescription(record?.description || "");
         setSortOrder(record?.sort_order ?? 0);
         setRelatedIds(record?.related_category_ids || []);
@@ -293,9 +278,7 @@ function CategoryEditor({ initial, onClose, onSaved }) {
     const manualSlug = slug.trim();
 
     if (manualSlug && !SLUG_REGEX.test(manualSlug)) {
-      setError(
-        "نامک فقط حروف کوچک انگلیسی، عدد و خط تیره می‌پذیرد.",
-      );
+      setError("نامک فقط حروف کوچک انگلیسی، عدد و خط تیره می‌پذیرد.");
       return;
     }
 
@@ -402,13 +385,11 @@ function CategoryEditor({ initial, onClose, onSaved }) {
 
             <label className="field">
               <span>دستهٔ بالاتر</span>
-              <select
+              <DashboardSelect
                 value={parentId}
                 onChange={(event) => setParentId(event.target.value)}
               >
-                <option value="">
-                  ندارد — دستهٔ مستقل
-                </option>
+                <option value="">ندارد — دستهٔ مستقل</option>
                 {options
                   .filter((item) => !blocked.has(item.id))
                   .map((item) => (
@@ -416,7 +397,7 @@ function CategoryEditor({ initial, onClose, onSaved }) {
                       {item.label}
                     </option>
                   ))}
-              </select>
+              </DashboardSelect>
               <small className="muted">
                 مثال: برای «گوشی هوشمند»، دستهٔ بالاتر «موبایل» است.
               </small>
@@ -446,9 +427,7 @@ function CategoryEditor({ initial, onClose, onSaved }) {
                     value={parentName}
                     maxLength={100}
                     placeholder="مثلاً موبایل"
-                    onChange={(event) =>
-                      setParentName(event.target.value)
-                    }
+                    onChange={(event) => setParentName(event.target.value)}
                   />
                 </label>
 
@@ -470,8 +449,8 @@ function CategoryEditor({ initial, onClose, onSaved }) {
                 </div>
 
                 <small className="muted">
-                  دستهٔ بالاتر جداگانه ذخیره می‌شود؛ سپس دستهٔ
-                  اصلی را با دکمهٔ پایین ذخیره کن.
+                  دستهٔ بالاتر جداگانه ذخیره می‌شود؛ سپس دستهٔ اصلی را با دکمهٔ
+                  پایین ذخیره کن.
                 </small>
               </div>
             )}
@@ -496,8 +475,8 @@ function CategoryEditor({ initial, onClose, onSaved }) {
                     onChange={(event) => setSlug(event.target.value)}
                   />
                   <small className="muted">
-                    اگر خالی بگذاری، یک نامک انگلیسی یکتا
-                    ساخته می‌شود. برای آدرس خوانا خودت وارد کن.
+                    اگر خالی بگذاری، یک نامک انگلیسی یکتا ساخته می‌شود. برای
+                    آدرس خوانا خودت وارد کن.
                   </small>
                 </label>
 
@@ -506,9 +485,7 @@ function CategoryEditor({ initial, onClose, onSaved }) {
                   <textarea
                     rows={3}
                     value={description}
-                    onChange={(event) =>
-                      setDescription(event.target.value)
-                    }
+                    onChange={(event) => setDescription(event.target.value)}
                   />
                 </label>
 
@@ -558,11 +535,7 @@ function CategoryEditor({ initial, onClose, onSaved }) {
             </details>
 
             <div className="form-actions">
-              <button
-                className="button primary"
-                type="submit"
-                disabled={busy}
-              >
+              <button className="button primary" type="submit" disabled={busy}>
                 {busy ? "در حال ذخیره…" : "ذخیرهٔ دسته‌بندی"}
               </button>
             </div>
@@ -593,10 +566,7 @@ function RecordEditor({ resource, initial, onClose, onSaved }) {
 
     const formData = new FormData(event.currentTarget);
     const payload = Object.fromEntries(
-      fields.map((field) => [
-        field.name,
-        formData.get(field.name),
-      ]),
+      fields.map((field) => [field.name, formData.get(field.name)]),
     );
 
     if (product) {
@@ -650,38 +620,51 @@ function RecordEditor({ resource, initial, onClose, onSaved }) {
           className="form-grid"
           style={{ border: 0, padding: 0, margin: 0 }}
         >
-          {fields.map((field) => (
-            <label className="field" key={field.name}>
-              <span>{field.label}</span>
-              {field.type === "textarea" ? (
-                <textarea
+          {fields.map((field) =>
+            field.type === "richtext" ? (
+              <div className="field full-width" key={field.name}>
+                <span>{field.label}</span>
+                <RichTextEditor
                   name={field.name}
-                  rows={4}
-                  maxLength={field.maxLength}
-                  defaultValue={initial?.[field.name] ?? ""}
+                  label={field.label}
+                  html={initial?.[field.name] || ""}
+                  plainText={initial?.[field.name.replace("_html", "")] || ""}
+                  disabled={busy}
                 />
-              ) : (
-                <input
-                  name={field.name}
-                  type={field.type || "text"}
-                  min={field.min}
-                  step={field.type === "number" ? "1" : undefined}
-                  maxLength={field.maxLength}
-                  required={field.required}
-                  defaultValue={initial?.[field.name] ?? ""}
-                />
-              )}
-            </label>
-          ))}
+              </div>
+            ) : (
+              <label className="field" key={field.name}>
+                <span>{field.label}</span>
+                {field.type === "textarea" ? (
+                  <textarea
+                    name={field.name}
+                    rows={4}
+                    maxLength={field.maxLength}
+                    defaultValue={initial?.[field.name] ?? ""}
+                  />
+                ) : (
+                  <input
+                    name={field.name}
+                    type={field.type || "text"}
+                    min={field.min}
+                    step={field.type === "number" ? "1" : undefined}
+                    maxLength={field.maxLength}
+                    required={field.required}
+                    defaultValue={initial?.[field.name] ?? ""}
+                  />
+                )}
+              </label>
+            ),
+          )}
 
           {product && (
             <>
               <label className="field">
                 <span>وضعیت انتشار</span>
-                <select name="status" defaultValue={initialStatus}>
+                <DashboardSelect name="status" defaultValue={initialStatus}>
                   <option value="draft">پیش‌نویس</option>
                   <option value="published">منتشرشده</option>
-                </select>
+                </DashboardSelect>
               </label>
 
               <label className="checkbox">
@@ -694,18 +677,14 @@ function RecordEditor({ resource, initial, onClose, onSaved }) {
               </label>
 
               <p className="muted full-width">
-                این قیمت و موجودی مربوط به محصول پایه‌اند؛
-                تنوع‌ها و گالری با این فرم تغییر نمی‌کنند.
+                این قیمت و موجودی مربوط به محصول پایه‌اند؛ تنوع‌ها و گالری با
+                این فرم تغییر نمی‌کنند.
               </p>
             </>
           )}
 
           <div className="form-actions">
-            <button
-              className="button primary"
-              type="submit"
-              disabled={busy}
-            >
+            <button className="button primary" type="submit" disabled={busy}>
               {busy ? "در حال ذخیره…" : "ذخیره"}
             </button>
           </div>
@@ -718,7 +697,9 @@ function RecordEditor({ resource, initial, onClose, onSaved }) {
 export default function Editor(props) {
   const key = `${props.resource.key}:${props.initial?.id || "new"}`;
 
-  return props.resource.key === "categories"
-    ? <CategoryEditor key={key} {...props} />
-    : <RecordEditor key={key} {...props} />;
+  return props.resource.key === "categories" ? (
+    <CategoryEditor key={key} {...props} />
+  ) : (
+    <RecordEditor key={key} {...props} />
+  );
 }

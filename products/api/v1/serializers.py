@@ -46,6 +46,7 @@ class BrandSerializer(serializers.ModelSerializer):
 
 
 class ProductAttributeValueSerializer(serializers.ModelSerializer):
+    unit = serializers.CharField(source="attribute.unit", read_only=True)
     attribute = serializers.CharField(
         source="attribute.name",
         read_only=True,
@@ -53,16 +54,19 @@ class ProductAttributeValueSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductAttributeValue
-        fields = ["id", "attribute", "value"]
+        fields = ["id", "attribute", "value", "unit"]
 
 
 
 class ProductVariantSerializer(serializers.ModelSerializer):
+    label = serializers.CharField(source="display_name", read_only=True)
     class Meta:
         model = ProductVariant
         fields = [
             "id",
             "sku",
+            "options",
+            "label",
             "color",
             "storage",
             "price",
@@ -74,6 +78,17 @@ class ProductVariantSerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
+    long_description_html = serializers.SerializerMethodField()
+    gallery_description_html = serializers.SerializerMethodField()
+
+    def get_long_description_html(self, obj):
+        from products.services.richtext_service import sanitize_richtext
+        return sanitize_richtext(obj.long_description_html)
+
+    def get_gallery_description_html(self, obj):
+        from products.services.richtext_service import sanitize_richtext
+        return sanitize_richtext(obj.gallery_description_html)
+
     category = CategorySerializer(read_only=True)
     images = ProductImageSerializer(many=True, read_only=True)
     brand = BrandSerializer(read_only=True)
@@ -100,6 +115,8 @@ class ProductSerializer(serializers.ModelSerializer):
             "short_description",
             "long_description",
             "gallery_description",
+            "long_description_html",
+            "gallery_description_html",
             "price",
             "stock",
             "image",
@@ -109,6 +126,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "brand",
             "attribute_values",
             "variants",
+            "variant_schema",
             "default_variant",
             "is_available",
             "effective_price",
@@ -124,5 +142,5 @@ class ProductSerializer(serializers.ModelSerializer):
         return is_product_available(obj)
 
     def get_variants(self, obj):
-        variants = obj.variants.filter(is_active=True).order_by("price", "id")
+        variants = obj.variants.filter(is_active=True).select_related("product").order_by("price", "id")
         return ProductVariantSerializer(variants, many=True).data

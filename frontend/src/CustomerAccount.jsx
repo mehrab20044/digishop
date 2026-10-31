@@ -46,6 +46,8 @@ export default function CustomerAccount({
   onLogout,
   busy,
   error,
+  tab: selectedTab,
+  onSaved,
 }) {
   const [account, setAccount] = useState(user);
   const [pending, setPending] = useState(false);
@@ -56,6 +58,13 @@ export default function CustomerAccount({
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [removeImage, setRemoveImage] = useState(false);
   const [profileRevision, setProfileRevision] = useState(0);
+
+  useEffect(() => {
+    onSaved?.(account);
+    window.dispatchEvent(
+      new CustomEvent("customer-profile-updated", { detail: account }),
+    );
+  }, [account, onSaved]);
 
   const lock = useRef(false);
   const mounted = useRef(true);
@@ -74,10 +83,7 @@ export default function CustomerAccount({
 
   useEffect(() => {
     function onExpired(event) {
-      if (
-        event.detail?.storageKey ===
-        "digishop.customer.session"
-      ) {
+      if (event.detail?.storageKey === "digishop.customer.session") {
         window.location.replace("/login");
       }
     }
@@ -89,13 +95,13 @@ export default function CustomerAccount({
     };
   }, []);
 
-  const requestedTab = new URLSearchParams(
-    window.location.search,
-  ).get("tab");
+  const requestedTab = new URLSearchParams(window.location.search).get("tab");
 
-  const tab = ["profile", "addresses"].includes(requestedTab)
-    ? requestedTab
-    : "overview";
+  const tab =
+    selectedTab ||
+    (["profile", "addresses"].includes(requestedTab)
+      ? requestedTab
+      : "overview");
 
   const menu = [
     ["overview", "نمای کلی", "/account"],
@@ -105,14 +111,11 @@ export default function CustomerAccount({
 
   const title = menu.find(([key]) => key === tab)[1];
 
-  const fullName = [
-    account.first_name,
-    account.last_name,
-  ].filter(Boolean).join(" ");
+  const fullName = [account.first_name, account.last_name]
+    .filter(Boolean)
+    .join(" ");
 
-  const addresses = Array.isArray(account.addresses)
-    ? account.addresses
-    : [];
+  const addresses = Array.isArray(account.addresses) ? account.addresses : [];
 
   const disabled = busy || pending;
 
@@ -253,454 +256,374 @@ export default function CustomerAccount({
   }
 
   return (
-    <div className="app customer-account" dir="rtl" lang="fa">
-      <aside className="sidebar">
-        <a className="brand" href="/account">
-          <span className="brand-mark">D</span>
-          <span>
-            دیجی‌شاپ
-            <small>MY ACCOUNT</small>
-          </span>
-        </a>
-
-        <p className="nav-caption">حساب کاربری من</p>
-
-        <nav aria-label="منوی حساب">
-          {menu.map(([key, label, href]) => (
-            <a
-              key={key}
-              href={href}
-              className={`nav-item ${tab === key ? "active" : ""}`}
-              aria-current={tab === key ? "page" : undefined}
-            >
-              {label}
-            </a>
-          ))}
-        </nav>
-
-        <div className="sidebar-note">
-          <p>اطلاعات و آدرس‌های حسابت را اینجا مدیریت کن.</p>
-        </div>
-
-        <div className="user-card">
-          <span className="avatar">
-            {account.first_name?.charAt(0) || "ک"}
-          </span>
+    <div className="customer-account ch-profile" dir="rtl" lang="fa">
+      <div className="content">
+        <div className="page-heading">
           <div>
-            <strong>{fullName || "کاربر دیجی‌شاپ"}</strong>
-            <small><bdi>{account.phone}</bdi></small>
+            <p className="eyebrow">فضای شخصی تو</p>
+            <h1>{title}</h1>
           </div>
         </div>
-      </aside>
 
-      <main className="main">
-        <header className="topbar">
-          <span className="breadcrumb">حساب من / {title}</span>
-
-          <button
-            type="button"
-            className="button ghost"
-            disabled={disabled}
-            onClick={onLogout}
-          >
-            {busy ? "در حال خروج…" : "خروج از حساب"}
-          </button>
-        </header>
-
-        <div className="content">
-          <div className="page-heading">
-            <div>
-              <p className="eyebrow">فضای شخصی تو</p>
-              <h1>{title}</h1>
-            </div>
+        {(failure || error) && (
+          <div className="auth-error" role="alert">
+            {failure || error}
           </div>
+        )}
 
-          {(failure || error) && (
-            <div className="auth-error" role="alert">
-              {failure || error}
-            </div>
-          )}
+        {notice && (
+          <div className="notice" role="status">
+            {notice}
+          </div>
+        )}
 
-          {notice && (
-            <div className="notice" role="status">{notice}</div>
-          )}
+        {pending && <p role="status">در حال انجام درخواست…</p>}
 
-          {pending && (
-            <p role="status">در حال انجام درخواست…</p>
-          )}
+        {tab === "overview" && (
+          <>
+            <section className="customer-welcome">
+              <span className="customer-welcome-icon" aria-hidden="true">
+                ◇
+              </span>
+              <div>
+                <p className="eyebrow">به حساب خودت خوش آمدی</p>
+                <h2>{fullName || "کاربر دیجی‌شاپ"}، سلام!</h2>
+                <p>
+                  اطلاعات شخصی و نشانی‌های ثبت‌شده‌ات از اینجا در دسترس هستند.
+                </p>
+              </div>
+            </section>
 
-          {tab === "overview" && (
-            <>
-              <section className="customer-welcome">
-                <span
-                  className="customer-welcome-icon"
-                  aria-hidden="true"
-                >
-                  ◇
-                </span>
-                <div>
-                  <p className="eyebrow">به حساب خودت خوش آمدی</p>
-                  <h2>{fullName || "کاربر دیجی‌شاپ"}، سلام!</h2>
-                  <p>
-                    اطلاعات شخصی و نشانی‌های ثبت‌شده‌ات
-                    از اینجا در دسترس هستند.
-                  </p>
-                </div>
+            <div className="customer-summary">
+              <section className="card">
+                <h2>
+                  {account.profile_completed
+                    ? "پروفایل تکمیل است"
+                    : "پروفایل نیاز به تکمیل دارد"}
+                </h2>
+                <p className="muted account-spacing">
+                  نام، نام خانوادگی و حداقل یک آدرس معتبر برای تکمیل پروفایل
+                  لازم است.
+                </p>
+                <a className="button ghost" href="/account?tab=profile">
+                  ویرایش اطلاعات ←
+                </a>
               </section>
 
-              <div className="customer-summary">
-                <section className="card">
-                  <h2>
-                    {account.profile_completed
-                      ? "پروفایل تکمیل است"
-                      : "پروفایل نیاز به تکمیل دارد"}
-                  </h2>
-                  <p className="muted account-spacing">
-                    نام، نام خانوادگی و حداقل یک آدرس معتبر
-                    برای تکمیل پروفایل لازم است.
-                  </p>
-                  <a
-                    className="button ghost"
-                    href="/account?tab=profile"
-                  >
-                    ویرایش اطلاعات ←
-                  </a>
-                </section>
-
-                <section className="card">
-                  <h2>
-                    {addresses.length.toLocaleString("fa-IR")} آدرس
-                  </h2>
-                  <p className="muted account-spacing">
-                    آدرس‌های خودت را ثبت و مدیریت کن.
-                  </p>
-                  <a
-                    className="button ghost"
-                    href="/account?tab=addresses"
-                  >
-                    مدیریت آدرس‌ها ←
-                  </a>
-                </section>
-              </div>
-
-              <section className="card account-spacing">
-                <h2>نشست‌های حساب</h2>
+              <section className="card">
+                <h2>{addresses.length.toLocaleString("fa-IR")} آدرس</h2>
                 <p className="muted account-spacing">
-                  خروج همگانی، تمام نشست‌های مشتری و مدیریت
-                  این حساب را در همهٔ دستگاه‌ها لغو می‌کند.
+                  آدرس‌های خودت را ثبت و مدیریت کن.
                 </p>
+                <a className="button ghost" href="/account?tab=addresses">
+                  مدیریت آدرس‌ها ←
+                </a>
+              </section>
+            </div>
 
-                {!allLogoutOpen ? (
+            <section className="card account-spacing">
+              <h2>نشست‌های حساب</h2>
+              <p className="muted account-spacing">
+                خروج همگانی، تمام نشست‌های مشتری و مدیریت این حساب را در همهٔ
+                دستگاه‌ها لغو می‌کند.
+              </p>
+
+              {!allLogoutOpen ? (
+                <button
+                  type="button"
+                  className="button ghost"
+                  disabled={disabled}
+                  onClick={() => setAllLogoutOpen(true)}
+                >
+                  خروج از همهٔ نشست‌ها
+                </button>
+              ) : (
+                <div className="account-actions">
+                  <span>از همهٔ نشست‌ها خارج شوی؟</span>
+                  <button
+                    type="button"
+                    className="button primary"
+                    disabled={disabled}
+                    onClick={signOutEverywhere}
+                  >
+                    بله، خروج همگانی
+                  </button>
                   <button
                     type="button"
                     className="button ghost"
                     disabled={disabled}
-                    onClick={() => setAllLogoutOpen(true)}
+                    onClick={() => setAllLogoutOpen(false)}
                   >
-                    خروج از همهٔ نشست‌ها
+                    انصراف
                   </button>
-                ) : (
-                  <div className="account-actions">
-                    <span>از همهٔ نشست‌ها خارج شوی؟</span>
-                    <button
-                      type="button"
-                      className="button primary"
-                      disabled={disabled}
-                      onClick={signOutEverywhere}
-                    >
-                      بله، خروج همگانی
-                    </button>
-                    <button
-                      type="button"
-                      className="button ghost"
-                      disabled={disabled}
-                      onClick={() => setAllLogoutOpen(false)}
-                    >
-                      انصراف
-                    </button>
-                  </div>
-                )}
-              </section>
-            </>
-          )}
+                </div>
+              )}
+            </section>
+          </>
+        )}
 
-          {tab === "profile" && (
+        {tab === "profile" && (
+          <section className="card">
+            <div className="section-heading">
+              <h2>اطلاعات شخصی</h2>
+              <span className="counter">
+                {account.profile_completed ? "تکمیل‌شده" : "ناقص"}
+              </span>
+            </div>
+
+            <form
+              key={profileRevision}
+              onSubmit={saveProfile}
+              className="account-form"
+            >
+              <fieldset disabled={disabled}>
+                <div className="account-form-grid">
+                  <Field
+                    label="نام"
+                    name="first_name"
+                    defaultValue={account.first_name || ""}
+                    maxLength={150}
+                    autoComplete="given-name"
+                    required
+                  />
+                  <Field
+                    label="نام خانوادگی"
+                    name="last_name"
+                    defaultValue={account.last_name || ""}
+                    maxLength={150}
+                    autoComplete="family-name"
+                    required
+                  />
+                  <Field
+                    label="شماره موبایل"
+                    value={account.phone || ""}
+                    readOnly
+                    dir="ltr"
+                  />
+                  <Field
+                    label="ایمیل — اختیاری"
+                    name="email"
+                    type="email"
+                    defaultValue={account.email || ""}
+                    maxLength={254}
+                    autoComplete="email"
+                    dir="ltr"
+                  />
+                </div>
+
+                <label className="account-field">
+                  <span>توضیحات — اختیاری</span>
+                  <textarea
+                    name="description"
+                    defaultValue={account.description || ""}
+                    maxLength={2000}
+                    rows={4}
+                  />
+                </label>
+
+                {account.image && (
+                  <img
+                    className="account-profile-image"
+                    src={account.image}
+                    alt="تصویر پروفایل"
+                  />
+                )}
+
+                <Field
+                  label="تصویر پروفایل — اختیاری"
+                  name="image"
+                  type="file"
+                  accept="image/*"
+                  disabled={disabled || removeImage}
+                />
+
+                {account.image && (
+                  <label className="account-check">
+                    <input
+                      type="checkbox"
+                      checked={removeImage}
+                      onChange={(event) => setRemoveImage(event.target.checked)}
+                    />
+                    حذف تصویر فعلی
+                  </label>
+                )}
+
+                <button type="submit" className="button primary">
+                  ذخیرهٔ اطلاعات
+                </button>
+              </fieldset>
+            </form>
+          </section>
+        )}
+
+        {tab === "addresses" && (
+          <>
             <section className="card">
               <div className="section-heading">
-                <h2>اطلاعات شخصی</h2>
-                <span className="counter">
-                  {account.profile_completed ? "تکمیل‌شده" : "ناقص"}
-                </span>
+                <h2>آدرس‌های من</h2>
+                <button
+                  type="button"
+                  className="button primary"
+                  disabled={disabled}
+                  onClick={() => {
+                    setAddress({
+                      ...EMPTY_ADDRESS,
+                      recipient_name: fullName,
+                      recipient_phone: account.phone || "",
+                    });
+                    setDeleteTarget(null);
+                    setFailure("");
+                  }}
+                >
+                  افزودن آدرس
+                </button>
               </div>
 
-              <form
-                key={profileRevision}
-                onSubmit={saveProfile}
-                className="account-form"
-              >
-                <fieldset disabled={disabled}>
-                  <div className="account-form-grid">
-                    <Field
-                      label="نام"
-                      name="first_name"
-                      defaultValue={account.first_name || ""}
-                      maxLength={150}
-                      autoComplete="given-name"
-                      required
-                    />
-                    <Field
-                      label="نام خانوادگی"
-                      name="last_name"
-                      defaultValue={account.last_name || ""}
-                      maxLength={150}
-                      autoComplete="family-name"
-                      required
-                    />
-                    <Field
-                      label="شماره موبایل"
-                      value={account.phone || ""}
-                      readOnly
-                      dir="ltr"
-                    />
-                    <Field
-                      label="ایمیل — اختیاری"
-                      name="email"
-                      type="email"
-                      defaultValue={account.email || ""}
-                      maxLength={254}
-                      autoComplete="email"
-                      dir="ltr"
-                    />
-                  </div>
+              {address && (
+                <form
+                  key={address.id || "new"}
+                  className="account-form account-address-form"
+                  onSubmit={saveAddress}
+                >
+                  <h3>{address.id ? "ویرایش آدرس" : "آدرس جدید"}</h3>
 
-                  <label className="account-field">
-                    <span>توضیحات — اختیاری</span>
-                    <textarea
-                      name="description"
-                      defaultValue={account.description || ""}
-                      maxLength={2000}
-                      rows={4}
-                    />
-                  </label>
+                  <fieldset disabled={disabled}>
+                    <div className="account-form-grid">
+                      {ADDRESS_FIELDS.map(([name, label, max]) => (
+                        <Field
+                          key={name}
+                          label={label}
+                          name={name}
+                          defaultValue={address[name] || ""}
+                          maxLength={max}
+                          required={name !== "unit"}
+                          inputMode={
+                            ["recipient_phone", "postal_code"].includes(name)
+                              ? "numeric"
+                              : undefined
+                          }
+                        />
+                      ))}
+                    </div>
 
-                  {account.image && (
-                    <img
-                      className="account-profile-image"
-                      src={account.image}
-                      alt="تصویر پروفایل"
-                    />
-                  )}
-
-                  <Field
-                    label="تصویر پروفایل — اختیاری"
-                    name="image"
-                    type="file"
-                    accept="image/*"
-                    disabled={disabled || removeImage}
-                  />
-
-                  {account.image && (
                     <label className="account-check">
                       <input
+                        name="is_default"
                         type="checkbox"
-                        checked={removeImage}
-                        onChange={(event) =>
-                          setRemoveImage(event.target.checked)
-                        }
+                        defaultChecked={address.is_default}
                       />
-                      حذف تصویر فعلی
+                      آدرس پیش‌فرض
                     </label>
-                  )}
 
-                  <button
-                    type="submit"
-                    className="button primary"
-                  >
-                    ذخیرهٔ اطلاعات
-                  </button>
-                </fieldset>
-              </form>
-            </section>
-          )}
+                    <div className="account-actions">
+                      <button type="submit" className="button primary">
+                        ذخیرهٔ آدرس
+                      </button>
+                      <button
+                        type="button"
+                        className="button ghost"
+                        onClick={() => setAddress(null)}
+                      >
+                        انصراف
+                      </button>
+                    </div>
+                  </fieldset>
+                </form>
+              )}
 
-          {tab === "addresses" && (
-            <>
-              <section className="card">
-                <div className="section-heading">
-                  <h2>آدرس‌های من</h2>
-                  <button
-                    type="button"
-                    className="button primary"
-                    disabled={disabled}
-                    onClick={() => {
-                      setAddress({
-                        ...EMPTY_ADDRESS,
-                        recipient_name: fullName,
-                        recipient_phone: account.phone || "",
-                      });
-                      setDeleteTarget(null);
-                      setFailure("");
-                    }}
-                  >
-                    افزودن آدرس
-                  </button>
-                </div>
-
-                {address && (
-                  <form
-                    key={address.id || "new"}
-                    className="account-form account-address-form"
-                    onSubmit={saveAddress}
-                  >
-                    <h3>
-                      {address.id ? "ویرایش آدرس" : "آدرس جدید"}
-                    </h3>
-
-                    <fieldset disabled={disabled}>
-                      <div className="account-form-grid">
-                        {ADDRESS_FIELDS.map(([name, label, max]) => (
-                          <Field
-                            key={name}
-                            label={label}
-                            name={name}
-                            defaultValue={address[name] || ""}
-                            maxLength={max}
-                            required={name !== "unit"}
-                            inputMode={
-                              ["recipient_phone", "postal_code"].includes(name)
-                                ? "numeric"
-                                : undefined
-                            }
-                          />
-                        ))}
+              {addresses.length === 0 ? (
+                <div className="empty">هنوز آدرسی ثبت نشده است.</div>
+              ) : (
+                <div className="customer-address-grid">
+                  {addresses.map((item) => (
+                    <article className="customer-address" key={item.id}>
+                      <div className="section-heading">
+                        <strong>{item.recipient_name}</strong>
+                        {item.is_default && (
+                          <span className="counter">پیش‌فرض</span>
+                        )}
                       </div>
 
-                      <label className="account-check">
-                        <input
-                          name="is_default"
-                          type="checkbox"
-                          defaultChecked={address.is_default}
-                        />
-                        آدرس پیش‌فرض
-                      </label>
+                      <p>
+                        {item.province}، {item.city}
+                      </p>
+                      <p>{item.street_address}</p>
+                      <p className="muted">
+                        پلاک {item.building_number}
+                        {item.unit ? `، واحد ${item.unit}` : ""}
+                      </p>
+                      <p className="muted">
+                        کد پستی: <bdi>{item.postal_code}</bdi>
+                      </p>
+                      <p className="muted">
+                        موبایل گیرنده: <bdi>{item.recipient_phone}</bdi>
+                      </p>
 
                       <div className="account-actions">
                         <button
-                          type="submit"
-                          className="button primary"
-                        >
-                          ذخیرهٔ آدرس
-                        </button>
-                        <button
                           type="button"
                           className="button ghost"
-                          onClick={() => setAddress(null)}
+                          disabled={disabled}
+                          onClick={() => {
+                            setAddress(item);
+                            setDeleteTarget(null);
+                          }}
                         >
-                          انصراف
+                          ویرایش
                         </button>
-                      </div>
-                    </fieldset>
-                  </form>
-                )}
 
-                {addresses.length === 0 ? (
-                  <div className="empty">
-                    هنوز آدرسی ثبت نشده است.
-                  </div>
-                ) : (
-                  <div className="customer-address-grid">
-                    {addresses.map((item) => (
-                      <article
-                        className="customer-address"
-                        key={item.id}
-                      >
-                        <div className="section-heading">
-                          <strong>{item.recipient_name}</strong>
-                          {item.is_default && (
-                            <span className="counter">پیش‌فرض</span>
-                          )}
-                        </div>
-
-                        <p>{item.province}، {item.city}</p>
-                        <p>{item.street_address}</p>
-                        <p className="muted">
-                          پلاک {item.building_number}
-                          {item.unit ? `، واحد ${item.unit}` : ""}
-                        </p>
-                        <p className="muted">
-                          کد پستی: <bdi>{item.postal_code}</bdi>
-                        </p>
-                        <p className="muted">
-                          موبایل گیرنده:{" "}
-                          <bdi>{item.recipient_phone}</bdi>
-                        </p>
-
-                        <div className="account-actions">
+                        {!item.is_default && (
                           <button
                             type="button"
                             className="button ghost"
                             disabled={disabled}
-                            onClick={() => {
-                              setAddress(item);
-                              setDeleteTarget(null);
-                            }}
+                            onClick={() => makeDefault(item.id)}
                           >
-                            ویرایش
+                            انتخاب پیش‌فرض
                           </button>
+                        )}
 
-                          {!item.is_default && (
+                        <button
+                          type="button"
+                          className="button ghost"
+                          disabled={disabled}
+                          onClick={() => setDeleteTarget(item.id)}
+                        >
+                          حذف
+                        </button>
+                      </div>
+
+                      {deleteTarget === item.id && (
+                        <div className="account-confirm" role="group">
+                          <p>این آدرس حذف شود؟</p>
+                          <div className="account-actions">
+                            <button
+                              type="button"
+                              className="button primary"
+                              disabled={disabled}
+                              onClick={confirmDelete}
+                            >
+                              تأیید حذف
+                            </button>
                             <button
                               type="button"
                               className="button ghost"
                               disabled={disabled}
-                              onClick={() => makeDefault(item.id)}
+                              onClick={() => setDeleteTarget(null)}
                             >
-                              انتخاب پیش‌فرض
+                              انصراف
                             </button>
-                          )}
-
-                          <button
-                            type="button"
-                            className="button ghost"
-                            disabled={disabled}
-                            onClick={() => setDeleteTarget(item.id)}
-                          >
-                            حذف
-                          </button>
-                        </div>
-
-                        {deleteTarget === item.id && (
-                          <div className="account-confirm" role="group">
-                            <p>این آدرس حذف شود؟</p>
-                            <div className="account-actions">
-                              <button
-                                type="button"
-                                className="button primary"
-                                disabled={disabled}
-                                onClick={confirmDelete}
-                              >
-                                تأیید حذف
-                              </button>
-                              <button
-                                type="button"
-                                className="button ghost"
-                                disabled={disabled}
-                                onClick={() => setDeleteTarget(null)}
-                              >
-                                انصراف
-                              </button>
-                            </div>
                           </div>
-                        )}
-                      </article>
-                    ))}
-                  </div>
-                )}
-              </section>
-            </>
-          )}
-        </div>
-      </main>
+                        </div>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          </>
+        )}
+      </div>
     </div>
   );
 }

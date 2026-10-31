@@ -10,3 +10,595 @@
 @media(max-width:760px){.sf-container{padding:0 20px}.sf-announcement{font-size:10px}.sf-announcement span{display:none}.sf-header-main{min-height:125px;flex-wrap:wrap;padding-top:18px;padding-bottom:16px;gap:15px}.sf-brand{font-size:21px}.sf-brand-symbol{width:37px;height:41px;font-size:25px}.sf-account{margin-right:auto;font-size:11px}.sf-search{order:3;flex:1 1 100%;max-width:none;padding:7px 12px;margin:0}.sf-nav{gap:22px;overflow-x:auto;white-space:nowrap;font-size:10px;min-height:47px}.sf-nav>span{display:none}.sf-nav a:first-child{padding-left:18px}.sf-hero{margin-top:20px;grid-template-columns:1fr;min-height:0;border-radius:20px}.sf-hero-copy{padding:30px 25px 5px}.sf-hero h1{font-size:30px;margin-top:10px}.sf-hero p{max-width:330px;font-size:11px;margin:10px 0 18px}.sf-hero-meta{margin-top:15px}.sf-hero-art{min-height:320px;max-width:440px;width:100%;margin:auto}.sf-phone{width:128px;height:250px;border-radius:24px}.sf-phone-back{top:35px;left:80px}.sf-phone-front{top:40px;left:190px}.sf-phone-screen{border-radius:17px}.sf-phone-screen>i{left:32px;width:48px}.sf-screen-time{font-size:29px;margin-top:35px}.sf-screen-caption{top:110px;font-size:24px}.sf-art-chip{left:35px;bottom:25px}.sf-art-star{left:60px;top:15px}.sf-orbit{width:280px;height:280px}.sf-orbit-two{width:350px;height:350px}.sf-category-section{padding-top:30px}.sf-section-title h1,.sf-section-title h2{font-size:19px}.sf-section-title{margin-bottom:20px}.sf-section-title>a{font-size:10px;gap:6px}.sf-categories{gap:10px}.sf-category{min-width:103px;padding:15px 10px;font-size:11px}.sf-category>span{height:46px;width:46px}.sf-catalog{padding-top:30px}.sf-products{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.sf-product-image{height:190px;padding:28px 18px}.sf-product-info{padding:14px}.sf-product-info h3{font-size:12px;min-height:46px}.sf-product-info p{font-size:9px}.sf-product-bottom strong{font-size:11px}.sf-card-arrow{width:25px;height:25px}.sf-product-bottom{margin-top:12px;padding-top:12px}.sf-bottom-banner{padding:25px;flex-direction:column;align-items:start;margin-bottom:40px;gap:18px}.sf-bottom-banner h2{font-size:18px}.sf-footer>.sf-container{gap:25px}.sf-footer nav{gap:20px}.sf-filter-toggle{display:block;margin-bottom:16px;background:#f2f5fc;border:1px solid #dfe5f2;padding:9px 15px;border-radius:8px;font-size:12px;color:var(--sf-blue)}.sf-filters{display:none}.sf-filters-open{display:flex;padding:16px}.sf-filters label{flex-basis:40%}.sf-detail{grid-template-columns:1fr;padding-top:0;gap:20px}.sf-main-image{height:360px}.sf-detail-copy h1{font-size:24px}.sf-detail-sections{grid-template-columns:1fr;gap:20px}.sf-skeleton span{height:180px}.sf-breadcrumb{font-size:10px;gap:8px}.sf-pagination{gap:12px;font-size:11px}.sf-pagination a{padding:8px 10px}}
 @media(max-width:380px){.sf-container{padding:0 14px}.sf-product-image{height:160px}.sf-product-info{padding:11px}.sf-product-bottom strong{font-size:10px}.sf-hero h1{font-size:26px}.sf-phone-back{left:50px}.sf-phone-front{left:155px}.sf-stock{top:8px;right:8px}}
 @media(prefers-reduced-motion:reduce){.sf-root *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+.sf-product-layout {
+  --purchase-top: 24px;
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-areas:
+    "detail purchase"
+    "sections purchase";
+  gap: 28px;
+  align-items: start;
+}
+
+.sf-product-layout > .sf-detail {
+  grid-area: detail;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.sf-product-layout > .sf-detail-sections {
+  grid-area: sections;
+  min-width: 0;
+}
+
+/* ستون در ارتفاع توضیحات هم ادامه دارد. */
+.sf-purchase-column {
+  grid-area: purchase;
+  align-self: stretch;
+  min-width: 0;
+}
+
+.sf-purchase-column .sf-purchase-sticky {
+  position: sticky;
+  top: var(--purchase-top);
+  margin-top: 0;
+  max-height: calc(100dvh - var(--purchase-top) - 24px);
+  overflow-y: auto;
+}
+
+/* توضیحات در ستون محتوای محصول زیر هم قرار می‌گیرند. */
+.sf-product-layout > .sf-detail-sections {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* در تبلت و موبایل کادر خرید روی محتوا قرار نمی‌گیرد. */
+@media (max-width: 1000px) {
+  .sf-product-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "detail"
+      "purchase"
+      "sections";
+    gap: 24px;
+  }
+
+  .sf-purchase-column .sf-purchase-sticky {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+}
+/* کادر خرید محصول */
+.sf-purchase-column .sf-purchase {
+  gap: 0;
+  padding: 24px;
+  border: 1px solid #dfe7e5;
+  border-radius: 18px;
+  background: #fff;
+  color: #233b36;
+  box-shadow: 0 8px 28px rgb(24 63 53 / 6%);
+  scrollbar-width: thin;
+}
+
+.sf-purchase-column .sf-purchase > span {
+  color: #71827c;
+  font-size: 12px;
+}
+
+.sf-purchase-column .sf-purchase > strong {
+  display: block;
+  margin: 12px 0 18px;
+  color: #203b32;
+  font-size: clamp(22px, 2vw, 28px);
+  font-weight: 700;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+}
+
+.sf-purchase-column .sf-purchase > small {
+  display: block;
+  margin-bottom: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #edf1ef;
+  color: #87958f;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+/* تعداد و دکمهٔ خرید */
+.sf-purchase-column .sf-add-cart form {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.sf-purchase-column .sf-add-cart form > label {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  color: #667c73;
+  font-size: 11px;
+}
+
+.sf-purchase-column .sf-add-cart input[type="number"] {
+  width: 100%;
+  height: 48px;
+  box-sizing: border-box;
+  padding: 8px;
+  border: 1px solid #d9e4df;
+  border-radius: 10px;
+  background: #f8fbf9;
+  color: #234c3d;
+  text-align: center;
+  font: inherit;
+  font-size: 15px;
+}
+
+.sf-purchase-column .sf-add-cart .sf-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  margin: 0;
+  padding: 10px 12px;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--store-primary, #176d60);
+  color: var(--store-button-text, #fff);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.7;
+  cursor: pointer;
+  transition: filter 150ms, box-shadow 150ms;
+}
+
+.sf-purchase-column .sf-add-cart .sf-button:hover:not(:disabled) {
+  filter: brightness(0.94);
+  box-shadow: 0 4px 12px rgb(24 63 53 / 12%);
+}
+
+.sf-purchase-column .sf-add-cart .sf-button:disabled {
+  background: #edf1ef;
+  color: #77857f;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.sf-purchase-column .sf-add-cart :focus-visible {
+  outline: 2px solid var(--store-primary, #176d60);
+  outline-offset: 3px;
+}
+
+/* توضیح پایین دکمه */
+.sf-purchase-column .sf-add-cart > p:last-child {
+  margin: 18px 0 0;
+  padding-top: 15px;
+  border-top: 1px solid #edf1ef;
+  color: #819087;
+  font-size: 10px;
+  line-height: 2;
+}
+
+@media (max-width: 650px) {
+  .sf-purchase-column .sf-purchase {
+    padding: 20px;
+    border-radius: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-purchase-column .sf-add-cart .sf-button {
+    transition: none;
+  }
+}
+/* چیدمان صفحهٔ محصول */
+.sf-product-layout {
+  --purchase-top: 24px;
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 310px;
+  grid-template-areas:
+    "detail purchase"
+    "sections purchase";
+  gap: 36px 28px;
+  align-items: start;
+  padding-block: 12px 48px;
+}
+
+.sf-product-layout > .sf-detail {
+  grid-area: detail;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 28px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.sf-product-layout .sf-gallery,
+.sf-product-layout .sf-detail-copy {
+  min-width: 0;
+}
+
+/* گالری */
+.sf-product-layout .sf-main-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: clamp(340px, 32vw, 460px);
+  padding: 20px;
+  box-sizing: border-box;
+  border: 1px solid #eef0f3;
+  border-radius: 20px;
+  background: #fafbfc;
+}
+
+.sf-product-layout .sf-main-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.sf-product-layout .sf-thumbnails {
+  display: flex;
+  gap: 10px;
+  padding-block: 14px;
+  overflow-x: auto;
+}
+
+.sf-product-layout .sf-thumbnails button {
+  flex: 0 0 64px;
+  width: 64px;
+  height: 70px;
+  padding: 6px;
+  border: 1px solid #e2e6ec;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.sf-product-layout .sf-thumbnails button.is-active {
+  border-color: var(--store-primary, #315bea);
+  box-shadow: 0 0 0 1px var(--store-primary, #315bea);
+}
+
+.sf-product-layout .sf-gallery-caption {
+  margin-top: 12px;
+  color: #7b8594;
+  font-size: 11px;
+  line-height: 2;
+}
+
+/* معرفی محصول */
+.sf-product-layout .sf-detail-copy {
+  padding-block: 8px;
+}
+
+.sf-product-layout .sf-overline {
+  display: block;
+  margin-bottom: 12px;
+  color: #697386;
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+.sf-product-layout .sf-detail-copy h1 {
+  margin: 0 0 18px;
+  color: #182230;
+  font-size: clamp(22px, 2vw, 29px);
+  font-weight: 700;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+
+.sf-product-layout .sf-detail-intro {
+  margin: 0 0 22px;
+  color: #596579;
+  font-size: 13px;
+  line-height: 2.2;
+}
+
+.sf-product-layout .sf-availability {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  background: #edf8f1;
+  color: #247347;
+  font-size: 11px;
+}
+
+.sf-product-layout .sf-availability-off {
+  background: #f2f3f5;
+  color: #707987;
+}
+
+/* انتخاب تنوع */
+.sf-product-layout .sf-variants {
+  margin: 26px 0 0;
+  padding: 20px 0 0;
+  border: 0;
+  border-top: 1px solid #e9edf2;
+}
+
+.sf-product-layout .sf-variants legend {
+  padding: 0 0 12px;
+  color: #253247;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sf-product-layout .sf-variants > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.sf-product-layout .sf-variants button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  width: 100%;
+  padding: 14px 16px 14px 42px;
+  border: 1px solid #dfe5ed;
+  border-radius: 10px;
+  background: #fff;
+  text-align: right;
+  cursor: pointer;
+}
+
+.sf-product-layout .sf-variants button b {
+  color: #273449;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sf-product-layout .sf-variants button span {
+  color: #66758a;
+  font-size: 11px;
+}
+
+.sf-product-layout .sf-variants button.is-active {
+  border-color: var(--store-primary, #315bea);
+  background: #f8faff;
+  box-shadow: inset 0 0 0 1px var(--store-primary, #315bea);
+}
+
+.sf-product-layout .sf-variants button.is-active::after {
+  content: "✓";
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--store-primary, #315bea);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* ستون خرید، در تمام ارتفاع توضیحات */
+.sf-purchase-column {
+  grid-area: purchase;
+  align-self: stretch;
+  min-width: 0;
+}
+
+.sf-purchase-column .sf-purchase-sticky {
+  position: sticky;
+  top: var(--purchase-top);
+  max-height: calc(100dvh - var(--purchase-top) - 24px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.sf-purchase-column .sf-purchase {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 24px;
+  border: 1px solid #e0e5ed;
+  border-radius: 16px;
+  background: #f8fafc;
+  color: #182230;
+  box-shadow: 0 8px 24px rgb(24 34 48 / 4%);
+}
+
+.sf-purchase-heading {
+  margin-bottom: 22px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #e3e8ef;
+}
+
+.sf-purchase-heading > span {
+  color: #778397;
+  font-size: 11px;
+}
+
+.sf-purchase-heading h2 {
+  margin: 9px 0;
+  color: #243247;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.9;
+}
+
+.sf-purchase-heading p {
+  margin: 0;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+.sf-purchase-column .sf-purchase > span {
+  color: #67758a;
+  font-size: 12px;
+}
+
+.sf-purchase-column .sf-purchase > strong {
+  margin: 10px 0 16px;
+  color: #162235;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.7;
+  font-variant-numeric: tabular-nums;
+}
+
+.sf-purchase-column .sf-purchase > small {
+  margin-bottom: 22px;
+  color: #7b8798;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+/* کنترل خرید */
+.sf-purchase-column .sf-add-cart form {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr);
+  align-items: end;
+  gap: 10px;
+}
+
+.sf-purchase-column .sf-add-cart form > label {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  color: #637188;
+  font-size: 11px;
+}
+
+.sf-purchase-column .sf-add-cart input[type="number"] {
+  width: 100%;
+  height: 50px;
+  padding: 8px;
+  box-sizing: border-box;
+  border: 1px solid #d6deea;
+  border-radius: 9px;
+  background: #fff;
+  color: #243247;
+  text-align: center;
+  font: inherit;
+  font-size: 15px;
+}
+
+.sf-purchase-column .sf-add-cart .sf-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 50px;
+  margin: 0;
+  padding: 10px;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 9px;
+  background: var(--store-primary, #315bea);
+  color: var(--store-button-text, #fff);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.7;
+  cursor: pointer;
+}
+
+.sf-purchase-column .sf-add-cart .sf-button:hover:not(:disabled) {
+  filter: brightness(0.94);
+}
+
+.sf-purchase-column .sf-add-cart .sf-button:disabled {
+  background: #e5e9ef;
+  color: #7a8594;
+  cursor: not-allowed;
+}
+
+.sf-purchase-column .sf-add-cart > p:last-child {
+  margin: 18px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid #e3e8ef;
+  color: #778397;
+  font-size: 10px;
+  line-height: 2;
+}
+
+.sf-product-layout button:focus-visible,
+.sf-product-layout input:focus-visible {
+  outline: 2px solid var(--store-primary, #315bea);
+  outline-offset: 3px;
+}
+
+/* توضیحات و مشخصات */
+.sf-product-layout > .sf-detail-sections {
+  grid-area: sections;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  min-width: 0;
+  margin: 0;
+}
+
+.sf-product-layout .sf-detail-sections > section {
+  padding: 28px;
+  border: 1px solid #e5e9ef;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.sf-product-layout .sf-detail-sections h2 {
+  margin: 0 0 22px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #edf0f4;
+  color: #243247;
+  font-size: 18px;
+}
+
+.sf-product-layout .sf-detail-sections p {
+  color: #536176;
+  font-size: 14px;
+  line-height: 2.3;
+}
+
+/* تبلت و موبایل */
+@media (max-width: 1000px) {
+  .sf-product-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "detail"
+      "purchase"
+      "sections";
+    gap: 24px;
+  }
+
+  .sf-purchase-column .sf-purchase-sticky {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 650px) {
+  .sf-product-layout > .sf-detail {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .sf-product-layout .sf-main-image {
+    height: 340px;
+  }
+
+  .sf-product-layout .sf-detail-copy h1 {
+    font-size: 23px;
+  }
+
+  .sf-purchase-column .sf-purchase,
+  .sf-product-layout .sf-detail-sections > section {
+    padding: 20px;
+  }
+}
