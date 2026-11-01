@@ -1,3 +1,4 @@
+import canonicalSEO from "./canonical-seo-plugin.js";
 import pageShell from "./page-shell-plugin.js";
 import categorySEO from "./category-seo-plugin.js";
 import react from "@vitejs/plugin-react";
@@ -6,13 +7,22 @@ import { defineConfig } from "vite";
 const backend = process.env.API_PROXY_TARGET || "http://127.0.0.1:8000";
 
 export default defineConfig({
-  plugins: [react(), categorySEO(backend), pageShell(backend)],
+  plugins: [
+    react(),
+    categorySEO(backend),
+    pageShell(backend),
+    canonicalSEO(backend),
+  ],
   server: {
     host: "0.0.0.0",
     port: 5173,
     strictPort: true,
     proxy: Object.fromEntries(
       [
+        "/robots.txt",
+        "/sitemap.xml",
+        "/category-sitemap.xml",
+        "/api/v1/seo",
         "/api/v1/cart",
         "/api/v1/orders",
         "/api/v1/payments",

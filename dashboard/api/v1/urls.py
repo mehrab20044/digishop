@@ -1,10 +1,9 @@
-from django.urls import path
-
 from dashboard.api.v1.catalog import (
     AttributeDefinitionsView,
     CategorySchemaView,
     ProductCatalogView,
 )
+from dashboard.api.v1.category_showcase import CategoryImageView, HomeCategoriesView
 from dashboard.api.v1.gallery import ProductGalleryView
 from dashboard.api.v1.product_create import ProductCreateView
 from dashboard.api.v1.staff import (
@@ -28,11 +27,14 @@ from dashboard.api.v1.write_views import (
     DashboardUpdateView,
     OwnerCSRFView,
 )
+from django.urls import path
 from seo.dashboard_api import SEOAccessView, SEODashboardView
 
 app_name = "owner_dashboard"
 
 urlpatterns = [
+    path("category-showcase/", HomeCategoriesView.as_view()),
+    path("category-images/<int:pk>/", CategoryImageView.as_view()),
     path("workspace/choices/", WorkspaceChoicesView.as_view()),
     path("workspace/products/", WorkspaceProductView.as_view()),
     path("workspace/products/<int:pk>/", WorkspaceProductView.as_view()),

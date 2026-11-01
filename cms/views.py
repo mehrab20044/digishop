@@ -5,6 +5,8 @@ from django.http import FileResponse, HttpResponsePermanentRedirect, JsonRespons
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_safe
 
+from seo.services.canonical_service import canonical_document, public_origin
+
 from cms.models import Page
 from cms.services.footer_service import footer_data
 from cms.services.render_service import public_document
@@ -24,6 +26,7 @@ def page_view(request, slug):
     url = "/pages/" + quote(page.slug, safe="")
     if quote(request.path, safe="/%") != url:
         return HttpResponsePermanentRedirect(url)
+    seo = canonical_document(request, request.get_full_path())
     document = public_document(page)
     from cms.services.frontend_service import frontend_assets
 
@@ -33,7 +36,9 @@ def page_view(request, slug):
         "cms/page.html",
         {
             "page": document,
-            "canonical": request.build_absolute_uri(url),
+            "canonical": seo["canonical"],
+            "canonical_metadata": seo,
+            "robots": seo["robots"],
             "navigation": footer_links(),
             "store_footer": footer_data()["config"],
             "bootstrap": bootstrap,
@@ -64,11 +69,14 @@ def page_sitemap(request):
     from django.http import HttpResponse
     from django.utils.html import escape
 
+    from seo.services.page_rules import sitemap_ids
+    pages = list(published_pages())
+    permitted = sitemap_ids("page", [page.pk for page in pages])
     rows = "".join(
         "<url><loc>"
-        + str(escape(request.build_absolute_uri("/pages/" + quote(row.slug, safe=""))))
+        + str(escape(public_origin(request) + "/pages/" + quote(row.slug, safe="")))
         + "</loc></url>"
-        for row in published_pages()
+        for row in pages if row.pk in permitted
     )
     return HttpResponse(
         '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'

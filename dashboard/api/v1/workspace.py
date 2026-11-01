@@ -3,6 +3,7 @@
 import hashlib
 import json
 
+from django.core.files.storage import default_storage
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import (
@@ -114,8 +115,11 @@ class WorkspaceChoicesView(CatalogView):
         if caps["view_category"]:
             _, _, rows = get_resource(request, "categories")
             categories = list(
-                rows.values("id", "name", "parent_id", "slug", "sort_order")
+                rows.values("id", "name", "parent_id", "slug", "sort_order", "image")
             )
+        for category in categories:
+            image = category.pop("image", None)
+            category["image_url"] = default_storage.url(image) if image else None
         if caps["view_brand"]:
             _, _, rows = get_resource(request, "brands")
             brands = list(rows.values("id", "name", "slug"))

@@ -1,20 +1,14 @@
+from accounts.authentication import SessionJWTAuthentication
+from accounts.models import Address
+from accounts.services.profile_service import get_profile_status
+from accounts.services.staff_service import can_manage
+from dashboard.permissions import IsManagementSession
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
-from rest_framework import serializers
-from rest_framework.exceptions import NotFound, PermissionDenied
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.response import Response
-from rest_framework.views import APIView
-
-from accounts.authentication import SessionJWTAuthentication
-from accounts.models import Address
-from accounts.services.profile_service import get_profile_status
-from accounts.services.staff_service import can_manage
-from dashboard.permissions import IsManagementSession
 from products.models import (
     Attribute,
     Brand,
@@ -22,6 +16,11 @@ from products.models import (
     Product,
 )
 from products.services.catalog_workflow import catalog_summary
+from rest_framework import serializers
+from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from seo.models import SEOSettings
 
 User = get_user_model()
@@ -185,6 +184,9 @@ def summary_data(resource, obj):
                 obj,
                 ["id", "name", "slug", "sort_order"],
             ),
+            "image_url": file_url(obj.image),
+            "is_home_featured": obj.is_home_featured,
+            "home_featured_order": obj.home_featured_order,
             "parent_id": obj.parent_id,
             "parent": obj.parent.name if obj.parent else "دستهٔ مستقل",
         }
@@ -262,6 +264,10 @@ def detail_data(resource, obj):
                 ["description", "sort_order", "parent_id"],
             ),
         )
+
+        data["image_url"] = file_url(obj.image)
+        data["is_home_featured"] = obj.is_home_featured
+        data["home_featured_order"] = obj.home_featured_order
 
         related = list(obj.related_categories.all())
 

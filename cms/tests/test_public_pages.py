@@ -47,10 +47,19 @@ class PublicPageTests(TestCase):
         self.assertNotContains(response, "HIDDEN TEXT")
 
     def test_styles_and_sitemap(self):
+        from seo.models import SEOSettings
+        settings = SEOSettings.get_settings()
+        settings.allow_crawling = True
+        settings.save()
+        from seo.services.robots_service import current_document
+        document = current_document()
+        document.published = {"version": 1, "groups": [{"id": "all", "agent": "*", "enabled": True, "rules": []}], "sitemaps": []}
+        document.save()
         self.publish()
         response = self.client.get(reverse("cms-styles"))
         self.assertEqual(response.status_code, 200)
-        response.close()
+        css = b"".join(response.streaming_content)
+        self.assertTrue(css)
         self.assertContains(self.client.get(reverse("cms-sitemap")), "/pages/about")
 
     def test_trailing_slash_redirects(self):

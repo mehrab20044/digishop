@@ -386,6 +386,7 @@ function CategoryEditor({ initial, onClose, onSaved }) {
             <label className="field">
               <span>دستهٔ بالاتر</span>
               <DashboardSelect
+                tree
                 value={parentId}
                 onChange={(event) => setParentId(event.target.value)}
               >
@@ -393,8 +394,12 @@ function CategoryEditor({ initial, onClose, onSaved }) {
                 {options
                   .filter((item) => !blocked.has(item.id))
                   .map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.label}
+                    <option
+                      key={item.id}
+                      value={item.id}
+                      data-parent={item.parent_id ?? ""}
+                    >
+                      {item.name}
                     </option>
                   ))}
               </DashboardSelect>

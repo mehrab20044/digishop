@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { API_BASE } from "./store-api";
-import {
-  flattenCategoryTree,
-  readCategoryTree,
-} from "./category-data";
+import { flattenCategoryTree, readCategoryTree } from "./category-data";
 
 function pathKey(value) {
   try {
@@ -46,11 +43,7 @@ function CatalogPlaceholder() {
   );
 }
 
-export default function CategoryRoute({
-  pathname,
-  search,
-  renderCatalog,
-}) {
+export default function CategoryRoute({ pathname, search, renderCatalog }) {
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
@@ -122,31 +115,6 @@ export default function CategoryRoute({
     if (!category) return;
 
     document.title = `${category.name} | دیجی‌شاپ`;
-
-    let canonical = document.querySelector('link[rel="canonical"]');
-    const created = !canonical;
-
-    if (!canonical) {
-      canonical = document.createElement("link");
-      canonical.rel = "canonical";
-      document.head.append(canonical);
-    }
-
-    const previous = canonical.getAttribute("href");
-    canonical.href = new URL(
-      category.url,
-      window.location.origin,
-    ).href;
-
-    return () => {
-      if (created) {
-        canonical.remove();
-      } else if (previous === null) {
-        canonical.removeAttribute("href");
-      } else {
-        canonical.setAttribute("href", previous);
-      }
-    };
   }, [category?.id, category?.name, category?.url, pathname]);
 
   if (error && !category) {

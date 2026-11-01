@@ -414,13 +414,17 @@ export default function ProductCreate({ onClose, onSaved }) {
 
             <label className="field">
               <span>دسته‌بندی</span>
-              <DashboardSelect name="category" defaultValue="" required>
+              <DashboardSelect tree name="category" defaultValue="" required>
                 <option value="" disabled>
                   انتخاب دسته‌بندی
                 </option>
 
                 {choices.categories.map((category) => (
-                  <option key={category.id} value={category.id}>
+                  <option
+                    key={category.id}
+                    value={category.id}
+                    data-parent={category.parent_id ?? ""}
+                  >
                     {category.name}
                   </option>
                 ))}

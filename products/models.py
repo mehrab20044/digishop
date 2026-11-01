@@ -52,6 +52,30 @@ class Category(models.Model):
         default=0,
     )
 
+
+    image = models.ImageField(
+        "تصویر دسته‌بندی",
+        upload_to="categories/",
+        blank=True,
+        null=True,
+        validators=[
+            validate_product_image_size,
+            validate_product_image_content,
+        ],
+    )
+
+    is_home_featured = models.BooleanField(
+        "نمایش در صفحه اصلی",
+        default=False,
+        db_index=True,
+    )
+
+    home_featured_order = models.PositiveSmallIntegerField(
+        "ترتیب در صفحه اصلی",
+        default=0,
+    )
+
+
     class Meta:
         verbose_name = "دسته‌بندی"
         verbose_name_plural = "دسته‌بندی‌ها"

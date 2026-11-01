@@ -1,3 +1,4 @@
+import { CategoryPicture } from "./CategoryDirectory";
 import {
   categoryLink,
   flattenCategoryTree,
@@ -15,26 +16,39 @@ export {
 
 export function HomeCategoryStrip() {
   const { data } = useCategoryTree();
-
-  if (!data?.length) return null;
+  const categories = flattenCategoryTree(data || [])
+    .filter((category) => category.is_home_featured === true)
+    .sort((a, b) => a.home_featured_order - b.home_featured_order || a.id - b.id)
+    .slice(0, 5);
 
   return (
-    <section className="dg-home-categories" aria-label="دسته‌بندی کالاها">
-      <div className="dg-home-title">
-        <h2>خرید بر اساس دسته‌بندی</h2>
-        <a href="/products">همهٔ کالاها ←</a>
-      </div>
-
-      <div className="dg-home-list">
-        {data.map((category) => (
-          <a href={categoryLink("", category)} key={category.id}>
-            <span className="sf-category-mark" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><path d="M14 17.5h7m-3.5-3.5v7"/></svg></span>
-            <strong>{category.name}</strong>
-            <small>{category.children?.length ? category.children.slice(0, 2).map(child => child.name).join(" · ") : "دیدن محصولات"}</small>
-            <i aria-hidden="true">↖</i>
+    <section className="category-circles" aria-label="خرید بر اساس دسته‌بندی">
+      <div className="category-circles-list">
+        {categories.map((category) => (
+          <a className="category-circle" key={category.id} href={categoryLink("", category)}>
+            <CategoryPicture category={category} />
+            <span className="category-circle-name">{category.name}</span>
           </a>
         ))}
       </div>
+<a className="category-circles-more" href="/categories">
+  <span>مشاهدهٔ همهٔ دسته‌بندی‌ها</span>
+
+  <span className="category-more-icon" aria-hidden="true">
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M19 12H5m6-6-6 6 6 6" />
+    </svg>
+  </span>
+</a>
     </section>
   );
 }
@@ -83,8 +97,7 @@ export default function CategoryBrowser({ search }) {
 
       {selected.length > 1 && (
         <p className="dg-context-note">
-          دسته‌های انتخاب‌شده:{" "}
-          {selected.map((row) => row.name).join("، ")}
+          دسته‌های انتخاب‌شده: {selected.map((row) => row.name).join("، ")}
         </p>
       )}
 
@@ -92,6 +105,7 @@ export default function CategoryBrowser({ search }) {
         <div className="dg-child-links" aria-label="زیرشاخه‌ها">
           {current.children.map((child) => (
             <a key={child.id} href={categoryLink(search, child)}>
+              <CategoryPicture category={child} />
               {child.name}
               <span aria-hidden="true">‹</span>
             </a>

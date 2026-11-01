@@ -1,3 +1,4 @@
+import { CategoryPicture } from "./CategoryDirectory";
 import { useEffect, useId, useRef, useState } from "react";
 
 import {
@@ -47,8 +48,7 @@ export default function CategoryMenu() {
   const flat = flattenCategoryTree(roots);
   const byId = new Map(flat.map((row) => [row.id, row]));
 
-  const desktopRoot =
-    byId.get(rootId) || byId.get(roots[0]?.id);
+  const desktopRoot = byId.get(rootId) || byId.get(roots[0]?.id);
 
   const mobileCurrent = byId.get(mobilePath.at(-1));
   const mobileRows = mobileCurrent?.children || roots;
@@ -57,9 +57,9 @@ export default function CategoryMenu() {
 
   const results = normalizedQuery
     ? flat.filter((row) =>
-        normalizeCategory(
-          row.path.map((part) => part.name).join(" "),
-        ).includes(normalizedQuery),
+        normalizeCategory(row.path.map((part) => part.name).join(" ")).includes(
+          normalizedQuery,
+        ),
       )
     : [];
 
@@ -75,14 +75,10 @@ export default function CategoryMenu() {
   }
 
   function drillInto(node) {
-    setMobilePath(
-      byId.get(node.id)?.path.map((part) => part.id) || [node.id],
-    );
+    setMobilePath(byId.get(node.id)?.path.map((part) => part.id) || [node.id]);
     setQuery("");
 
-    panel.current
-      ?.querySelector(".dg-mobile-body")
-      ?.scrollTo?.({ top: 0 });
+    panel.current?.querySelector(".dg-mobile-body")?.scrollTo?.({ top: 0 });
   }
 
   useEffect(() => {
@@ -138,10 +134,7 @@ export default function CategoryMenu() {
       document.removeEventListener("pointerdown", outside);
       document.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("resize", updateHeight);
-      window.visualViewport?.removeEventListener(
-        "resize",
-        updateHeight,
-      );
+      window.visualViewport?.removeEventListener("resize", updateHeight);
     };
   }, [open]);
 
@@ -250,9 +243,7 @@ export default function CategoryMenu() {
                   key={row.id}
                 >
                   <strong>{row.name}</strong>
-                  <small>
-                    {row.path.map((part) => part.name).join(" / ")}
-                  </small>
+                  <small>{row.path.map((part) => part.name).join(" / ")}</small>
                   <span aria-hidden="true">←</span>
                 </a>
               ))}
@@ -265,20 +256,16 @@ export default function CategoryMenu() {
             <>
               <div className="dg-desktop">
                 <nav className="dg-roots" aria-label="دسته‌های اصلی">
-                  {roots.map((root, index) => (
+                  {roots.map((root) => (
                     <button
                       type="button"
                       key={root.id}
-                      className={
-                        desktopRoot?.id === root.id ? "is-active" : ""
-                      }
+                      className={desktopRoot?.id === root.id ? "is-active" : ""}
                       aria-pressed={desktopRoot?.id === root.id}
-                      
+
                       onClick={() => setRootId(root.id)}
                     >
-                      <span className="dg-root-icon" aria-hidden="true">
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
+                      <CategoryPicture category={root} />
                       <span>{root.name}</span>
                       <span className="dg-root-arrow" aria-hidden="true">
                         ‹
@@ -305,15 +292,13 @@ export default function CategoryMenu() {
                               className="dg-group-title"
                               href={categoryLink("", child)}
                             >
+                              <CategoryPicture category={child} />
                               {child.name}
                               <span aria-hidden="true">‹</span>
                             </a>
 
                             {(child.children || []).map((grandchild) => (
-                              <div
-                                className="dg-subgroup"
-                                key={grandchild.id}
-                              >
+                              <div className="dg-subgroup" key={grandchild.id}>
                                 <a href={categoryLink("", grandchild)}>
                                   {grandchild.name}
                                 </a>
@@ -343,7 +328,8 @@ export default function CategoryMenu() {
 
                       {!desktopRoot.children?.length && (
                         <p className="dg-empty">
-                          برای دیدن کالاها، «همهٔ محصولات این دسته» را انتخاب کن.
+                          برای دیدن کالاها، «همهٔ محصولات این دسته» را انتخاب
+                          کن.
                         </p>
                       )}
                     </>
@@ -380,6 +366,7 @@ export default function CategoryMenu() {
                   {mobileRows.map((node) => (
                     <div className="dg-mobile-row" key={node.id}>
                       <a href={categoryLink("", node)}>
+                        <CategoryPicture category={node} />
                         {node.name}
                       </a>
 
@@ -407,7 +394,7 @@ export default function CategoryMenu() {
           )}
 
           <div className="dg-panel-footer">
-            <a href="/products">مشاهدهٔ همهٔ کالاها ←</a>
+            <a href="/categories">همهٔ دسته‌بندی‌ها ←</a>
             <span>انتخاب دسته، پیدا کردن سریع‌تر کالا</span>
           </div>
         </section>

@@ -1,3 +1,4 @@
+import CategoryCreateDialog from "./CategoryCreateDialog";
 import DashboardSelect from "../components/DashboardSelect";
 import { useEffect, useState } from "react";
 import { api, pathLabel } from "./api";
@@ -31,7 +32,14 @@ export function useUnsaved(dirty) {
     };
   }, [dirty]);
 }
-export function CategorySelect({ rows, value, onChange, exclude = [] }) {
+export function CategorySelect({
+  rows,
+  value,
+  onChange,
+  exclude = [],
+  createChoices,
+  onCreated,
+}) {
   const choices = rows
     .filter((row) => !exclude.includes(row.id))
     .map((row) => ({ ...row, path: pathLabel(row.id, rows) }))
@@ -39,6 +47,25 @@ export function CategorySelect({ rows, value, onChange, exclude = [] }) {
   return (
     <div className="cw-category-select">
       <DashboardSelect
+        tree
+        renderCategoryCreate={
+          createChoices?.permissions?.add_category && onCreated
+            ? (parent, close) => (
+                <CategoryCreateDialog
+                  choices={createChoices}
+                  parentId={parent ? Number(parent.value) : null}
+                  fixedParentLabel={parent?.label || "دستهٔ اصلی (بدون والد)"}
+                  triggerLabel="ساخت دسته در این بخش"
+                  triggerClassName="dcc-create-button"
+                  onSaved={async (row) => {
+                    await onCreated(row);
+                    close();
+                  }}
+                  ParentSelect={CategorySelect}
+                />
+              )
+            : undefined
+        }
         searchable
         aria-label="دسته‌بندی"
         value={value ?? ""}
@@ -48,7 +75,13 @@ export function CategorySelect({ rows, value, onChange, exclude = [] }) {
       >
         <option value="">انتخاب دسته</option>
         {choices.map((row) => (
-          <option key={row.id} value={row.id} data-path={row.path}>
+          <option
+            key={row.id}
+            value={row.id}
+            data-path={row.path}
+            data-parent={row.parent_id ?? ""}
+            data-image={row.image_url || row.image || ""}
+          >
             {row.name}
           </option>
         ))}
@@ -63,6 +96,15 @@ export function QuickCreate({ kind, choices, onSaved, parentId = null }) {
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const category = kind === "category";
+  if (category)
+    return (
+      <CategoryCreateDialog
+        choices={choices}
+        onSaved={onSaved}
+        parentId={parentId}
+        ParentSelect={CategorySelect}
+      />
+    );
   return (
     <div className="cw-quick">
       {!open ? (

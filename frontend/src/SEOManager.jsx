@@ -1,3 +1,5 @@
+import RobotsStudio from "./seo/RobotsStudio";
+import PageRobotsManager from "./seo/PageRobotsManager";
 import { managementFetch } from "./managementAuth";
 import { useEffect, useState } from "react";
 
@@ -105,11 +107,7 @@ function PermissionRow({ user, csrfToken, onSaved }) {
     setError("");
 
     try {
-      await post(
-        "access/",
-        { user_id: user.id, ...flags },
-        csrfToken,
-      );
+      await post("access/", { user_id: user.id, ...flags }, csrfToken);
     } catch (err) {
       setError(err.message);
       setBusy(false);
@@ -159,18 +157,14 @@ function PermissionRow({ user, csrfToken, onSaved }) {
       {inherited.length > 0 && (
         <p className="muted" style={{ marginBottom: 12 }}>
           دسترسی از گروه:{" "}
-          {inherited.map((key) => permissionLabels[key]).join("، ")}
-          . لغو آن باید از گروه مربوط در Django Admin انجام شود.
+          {inherited.map((key) => permissionLabels[key]).join("، ")}. لغو آن
+          باید از گروه مربوط در Django Admin انجام شود.
         </p>
       )}
 
       {error && <p role="alert">{error}</p>}
 
-      <button
-        className="button primary"
-        disabled={busy}
-        onClick={save}
-      >
+      <button className="button primary" disabled={busy} onClick={save}>
         {busy ? "در حال ذخیره…" : "ذخیرهٔ دسترسی مستقیم"}
       </button>
     </div>
@@ -182,9 +176,7 @@ function AccessManager({ csrfToken }) {
   const [revision, setRevision] = useState(0);
   const [notice, setNotice] = useState("");
 
-  const state = useSEO(
-    `access/?page=${page}&refresh=${revision}`,
-  );
+  const state = useSEO(`access/?page=${page}&refresh=${revision}`);
 
   return (
     <section className="card" style={{ marginTop: 22 }}>
@@ -193,9 +185,8 @@ function AccessManager({ csrfToken }) {
       </div>
 
       <p className="muted" style={{ marginBottom: 20 }}>
-        تیک‌ها مجوز مستقیم هستند. حساب مسئول باید قبلاً در
-        بخش کاربران، فعال و عضو مدیریت (Staff) شده باشد.
-        نیازی به Superuser کردن مسئول SEO نیست.
+        تیک‌ها مجوز مستقیم هستند. حساب مسئول باید قبلاً در بخش کاربران، فعال و
+        عضو مدیریت (Staff) شده باشد. نیازی به Superuser کردن مسئول SEO نیست.
       </p>
 
       {notice && <p role="status">{notice}</p>}
@@ -251,226 +242,69 @@ function AccessManager({ csrfToken }) {
 }
 
 export default function SEOManager() {
-  const [revision, setRevision] = useState(0);
-  const [desired, setDesired] = useState(null);
-  const [confirmation, setConfirmation] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState("");
-  const [error, setError] = useState("");
-
-  const state = useSEO(`?refresh=${revision}`);
-
-  function refresh() {
-    setDesired(null);
-    setConfirmation(null);
-    setError("");
-    setRevision((value) => value + 1);
-  }
-
-  async function submit(action) {
-    if (!state.data || busy) return;
-
-    setBusy(true);
-    setError("");
-    setNotice("");
-
-    try {
-      if (action === "prepare") {
-        const prepared = await post(
-          "",
-          {
-            action: "prepare",
-            expected_version: state.data.settings.version,
-            allow_crawling:
-              desired ?? state.data.settings.allow_crawling,
-          },
-          state.data.csrfToken,
-        );
-
-        if (prepared.unchanged) {
-          setNotice("تغییری نسبت به تنظیمات فعلی نداده‌ای.");
-        } else {
-          setConfirmation(prepared);
-        }
-      } else {
-        await post(
-          "",
-          {
-            action: "confirm",
-            confirmation: confirmation.confirmation,
-          },
-          state.data.csrfToken,
-        );
-
-        setNotice("تنظیم خزش ذخیره و تغییر آن ثبت شد.");
-        refresh();
-      }
-    } catch (err) {
-      setError(err.message);
-      setConfirmation(null);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (state.loading) {
-    return <p role="status">در حال دریافت تنظیمات SEO…</p>;
-  }
-
-  if (state.error) {
+  const state = useSEO("");
+  const [tab, setTab] = useState("robots");
+  if (state.loading) return <p role="status">در حال دریافت دسترسی سئو…</p>;
+  if (state.error)
     return (
       <section className="card">
         <p role="alert">{state.error}</p>
-        <button className="button primary" onClick={refresh}>
-          تلاش دوباره
-        </button>
       </section>
     );
-  }
-
-  const { settings, capabilities, logs, csrfToken } = state.data;
-
+  const { capabilities, csrfToken, logs } = state.data;
   return (
     <>
-      <section className="card">
-        <div className="section-heading">
-          <h2>تنظیمات خزش ربات‌ها</h2>
-
-          <button
-            className="button ghost"
-            disabled={busy}
-            onClick={refresh}
-          >
-            تازه‌سازی
-          </button>
-        </div>
-
-        {notice && <div className="notice" role="status">{notice}</div>}
-        {error && <p role="alert" style={{ color: "#a33030" }}>{error}</p>}
-
-        {settings ? (
-          <>
-            <p>
-              وضعیت فعلی:{" "}
-              <strong>
-                {settings.allow_crawling ? "خزش مجاز" : "خزش غیرمجاز"}
-              </strong>
-            </p>
-
-            <p className="muted">
-              نسخهٔ تنظیمات: {settings.version.toLocaleString("fa-IR")}
-            </p>
-
-            {capabilities.change && (
-              <>
-                <label
-                  className="checkbox"
-                  style={{ margin: "25px 0" }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={desired ?? settings.allow_crawling}
-                    disabled={busy || Boolean(confirmation)}
-                    onChange={(event) => setDesired(event.target.checked)}
-                  />
-                  اجازهٔ خزش عمومی ربات‌ها
-                </label>
-
-                {!confirmation ? (
-                  <button
-                    className="button primary"
-                    disabled={busy}
-                    onClick={() => submit("prepare")}
-                  >
-                    {busy ? "در حال بررسی…" : "بررسی و تأیید تغییر"}
-                  </button>
-                ) : (
-                  <div
-                    style={{
-                      padding: 20,
-                      background: "#fff8e8",
-                      border: "1px solid #eddcb4",
-                      borderRadius: 14,
-                    }}
-                  >
-                    <strong>تغییر اجازهٔ خزش را تأیید می‌کنی؟</strong>
-
-                    <p>
-                      از {confirmation.old_value ? "مجاز" : "غیرمجاز"}
-                      {" به "}
-                      {confirmation.new_value ? "مجاز" : "غیرمجاز"}
-                    </p>
-
-                    <div style={{ display: "flex", gap: 10 }}>
-                      <button
-                        className="button primary"
-                        disabled={busy}
-                        onClick={() => submit("confirm")}
-                      >
-                        {busy ? "در حال ذخیره…" : "تأیید و ذخیره"}
-                      </button>
-
-                      <button
-                        className="button ghost"
-                        disabled={busy}
-                        onClick={() => setConfirmation(null)}
-                      >
-                        انصراف
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-
-            <p className="muted" style={{ marginTop: 22 }}>
-              این تنظیم محتوای robots.txt را تغییر می‌دهد؛
-              مجوز دسترسی به صفحات یا تضمین حذف از موتور جست‌وجو نیست.
-            </p>
-          </>
-        ) : (
-          <p>مجوز مشاهدهٔ تنظیمات را نداری.</p>
-        )}
-      </section>
-
-      {capabilities.history && (
-        <section className="card" style={{ marginTop: 22 }}>
-          <div className="section-heading">
-            <h2>۲۰ تغییر اخیر SEO</h2>
-          </div>
-
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>تغییردهنده</th>
-                  <th>قبلی</th>
-                  <th>جدید</th>
-                  <th>زمان</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {logs.map((log) => (
-                  <tr key={log.id}>
-                    <td>{log.changed_by}</td>
-                    <td>{log.old_value ? "مجاز" : "غیرمجاز"}</td>
-                    <td>{log.new_value ? "مجاز" : "غیرمجاز"}</td>
-                    <td>
-                      {new Date(log.changed_at).toLocaleString("fa-IR")}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {logs.length === 0 && <p>تغییری ثبت نشده است.</p>}
+      {capabilities.view && (
+        <>
+          <nav className="rs-section-tabs" aria-label="بخش‌های سئو">
+            <button
+              type="button"
+              aria-pressed={tab === "robots"}
+              onClick={() => setTab("robots")}
+            >
+              robots.txt
+            </button>
+            <button
+              type="button"
+              aria-pressed={tab === "index"}
+              onClick={() => setTab("index")}
+            >
+              ایندکس صفحات
+            </button>
+          </nav>
+          {tab === "robots" ? (
+            <RobotsStudio />
+          ) : (
+            <PageRobotsManager indexOnly />
+          )}
+        </>
+      )}
+      {!capabilities.view && (
+        <section className="card">
+          <p>برای مدیریت robots.txt به مجوز مشاهدهٔ سئو نیاز دارید.</p>
         </section>
       )}
-
+      {capabilities.history && (
+        <details className="rs-access">
+          <summary>تاریخچهٔ تنظیمات قبلی سئو</summary>
+          <ul>
+            {logs.map((log) => (
+              <li key={log.id}>
+                {log.changed_by} ·{" "}
+                {new Date(log.changed_at).toLocaleString("fa-IR")} ·{" "}
+                {log.old_value ? "مجاز" : "مسدود"} ←{" "}
+                {log.new_value ? "مجاز" : "مسدود"}
+              </li>
+            ))}
+          </ul>
+          {logs.length === 0 && <p>تغییری ثبت نشده است.</p>}
+        </details>
+      )}
       {capabilities.manage_access && (
-        <AccessManager csrfToken={csrfToken} />
+        <details className="rs-access">
+          <summary>مدیریت دسترسی مسئولان سئو</summary>
+          <AccessManager csrfToken={csrfToken} />
+        </details>
       )}
     </>
   );

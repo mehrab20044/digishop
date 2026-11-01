@@ -1,3 +1,4 @@
+import CategoryDirectory from "./storefront/CategoryDirectory";
 import VariantPicker from "./attributes/VariantPicker";
 import RichContent from "./richtext/RichContent";
 import { Promotions } from "./banners/Promotions";
@@ -234,11 +235,25 @@ function Header({ search }) {
 
 function StoreWelcome() {
   const theme = useStoreTheme();
-  return <section className="sf-welcome sf-container" aria-labelledby="sf-welcome-title">
-    <div><span className="sf-welcome-eyebrow"><span /> دنیای انتخاب‌های تو</span>
-    <h1 id="sf-welcome-title">{theme.banner?.title || "انتخاب بهتر، هر روز."}</h1></div>
-    <p>{theme.banner?.text || "محصولات را مقایسه کن، جزئیات را ببین و انتخاب خودت را پیدا کن."}</p>
-  </section>;
+  return (
+    <section
+      className="sf-welcome sf-container"
+      aria-labelledby="sf-welcome-title"
+    >
+      <div>
+        <span className="sf-welcome-eyebrow">
+          <span /> دنیای انتخاب‌های تو
+        </span>
+        <h1 id="sf-welcome-title">
+          {theme.banner?.title || "انتخاب بهتر، هر روز."}
+        </h1>
+      </div>
+      <p>
+        {theme.banner?.text ||
+          "محصولات را مقایسه کن، جزئیات را ببین و انتخاب خودت را پیدا کن."}
+      </p>
+    </section>
+  );
 }
 
 function CategoryStrip() {
@@ -790,7 +805,8 @@ export default function Storefront() {
   useEffect(() => {
     document.documentElement.lang = "fa";
 
-    let title = "صفحه پیدا نشد";
+    let title =
+      pathname === "/categories" ? "همهٔ دسته‌بندی‌ها" : "صفحه پیدا نشد";
 
     if (
       /^\/payments\/fake\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
@@ -840,6 +856,8 @@ export default function Storefront() {
     content = <CartPage />;
   } else if (detail) {
     content = <ProductDetail id={detail[1]} />;
+  } else if (pathname === "/categories") {
+    content = <CategoryDirectory />;
   } else if (pathname.startsWith("/products/category/")) {
     content = (
       <CategoryRoute
@@ -872,7 +890,6 @@ export default function Storefront() {
 
   return (
     <StoreLayout>
-
       {home && (
         <div className="bn-hero-wide">
           <Promotions placement="hero" />
@@ -881,7 +898,6 @@ export default function Storefront() {
       <main id="sf-main" className="sf-container">
         {home && (
           <>
-
             <CategoryStrip />
             <Promotions placement="tiles" />
           </>
@@ -962,8 +978,6 @@ function ThemedShell({ children, preview, linksOverride }) {
       {children}
 
       <StoreFooter linksOverride={linksOverride} />
-
-
     </div>
   );
 }

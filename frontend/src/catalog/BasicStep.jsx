@@ -19,6 +19,8 @@ export default function BasicStep({ basic, choices, change, quick }) {
         </label>
         <CategorySelect
           rows={choices.categories}
+          createChoices={choices}
+          onCreated={(row) => quick("categories", row)}
           value={basic.category_id}
           onChange={(v) => change("category_id", v)}
         />

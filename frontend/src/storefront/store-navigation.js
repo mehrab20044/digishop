@@ -22,6 +22,7 @@ function isCatalogPath(pathname) {
   return (
     path === "/" ||
     path === "/products" ||
+    path === "/categories" ||
     path.startsWith("/products/category/")
   );
 }
@@ -29,10 +30,7 @@ function isCatalogPath(pathname) {
 export function navigateStore(href) {
   const url = new URL(href, window.location.origin);
 
-  if (
-    url.origin !== window.location.origin ||
-    !isCatalogPath(url.pathname)
-  ) {
+  if (url.origin !== window.location.origin || !isCatalogPath(url.pathname)) {
     window.location.assign(url.href);
     return;
   }
@@ -62,11 +60,7 @@ export function navigateStore(href) {
 }
 
 export function useStoreLocation() {
-  const location = useSyncExternalStore(
-    subscribe,
-    getSnapshot,
-    getSnapshot,
-  );
+  const location = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
   useEffect(() => {
     function onClick(event) {
@@ -115,10 +109,10 @@ export function useStoreLocation() {
 
   return {
     pathname:
-      (queryIndex < 0
-        ? location
-        : location.slice(0, queryIndex)
-      ).replace(/\/+$/, "") || "/",
+      (queryIndex < 0 ? location : location.slice(0, queryIndex)).replace(
+        /\/+$/,
+        "",
+      ) || "/",
     search: queryIndex < 0 ? "" : location.slice(queryIndex),
   };
 }

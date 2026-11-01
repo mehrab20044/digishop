@@ -1,3 +1,4 @@
+import CategoryCardDialog from "./CategoryCardDialog";
 import {
   forwardRef,
   useCallback,
@@ -9,6 +10,8 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import "./dashboard-select.css";
+import "./dashboard-category-tree.css";
+import { categoryAncestors, categoryTreeRows } from "./category-tree";
 
 const normalize = (value) =>
   String(value || "")
@@ -34,6 +37,8 @@ const DashboardSelect = forwardRef(function DashboardSelect(
     className = "",
     style,
     searchable,
+    tree = false,
+    renderCategoryCreate,
     ...props
   },
   forwardedRef,
@@ -50,6 +55,7 @@ const DashboardSelect = forwardRef(function DashboardSelect(
   const [active, setActive] = useState(-1);
   const [position, setPosition] = useState(null);
   const [appearance, setAppearance] = useState({});
+  const [expanded, setExpanded] = useState(() => new Set());
 
   const setNative = useCallback(
     (node) => {
@@ -69,6 +75,8 @@ const DashboardSelect = forwardRef(function DashboardSelect(
       label: option.label || option.textContent,
       selected: option.selected,
       description: option.dataset.path || "",
+      parent: option.dataset.parent || "",
+      image: option.dataset.image || "",
       disabled:
         option.disabled ||
         (option.parentElement.tagName === "OPTGROUP" &&
@@ -126,12 +134,41 @@ const DashboardSelect = forwardRef(function DashboardSelect(
   }, [model.disabled]);
 
   const selected = model.rows.filter((row) => row.selected);
-  const canSearch = searchable ?? model.rows.length > 7;
-  const rows = model.rows.filter((row) =>
-    normalize(`${row.group} ${row.label} ${row.description}`).includes(
-      normalize(query),
-    ),
-  );
+  const canSearch = tree || (searchable ?? model.rows.length > 7);
+  const rows = tree
+    ? categoryTreeRows(model.rows, expanded, query)
+    : model.rows.filter((row) =>
+        normalize(`${row.group} ${row.label} ${row.description}`).includes(
+          normalize(query),
+        ),
+      );
+
+  useEffect(() => {
+    if (!tree || !open) return;
+    const values = model.rows
+      .filter((row) => row.selected && row.value)
+      .map((row) => row.value);
+    setExpanded(new Set([...categoryAncestors(model.rows, values), ...values]));
+    const selectedRow = model.rows.find((row) => row.selected && row.value);
+    if (selectedRow) setActive(selectedRow.index);
+  }, [tree, open, model.signature]);
+
+  useEffect(() => {
+    if (tree && open && active >= 0)
+      popup.current
+        ?.querySelector(`[data-index="${active}"]`)
+        ?.scrollIntoView?.({ block: "nearest" });
+  }, [tree, open, active, expanded, query]);
+
+  function toggleBranch(row) {
+    setActive(row.index);
+    setExpanded((previous) => {
+      const next = new Set(previous);
+      if (next.has(row.value)) next.delete(row.value);
+      else next.add(row.value);
+      return next;
+    });
+  }
 
   function close(restore = false) {
     setOpen(false);
@@ -169,13 +206,13 @@ const DashboardSelect = forwardRef(function DashboardSelect(
       setOpen(false);
       setQuery("");
       // Rich text commands may already have restored focus to their editor.
-      if (popup.current?.contains(document.activeElement))
+      if (tree || popup.current?.contains(document.activeElement))
         trigger.current?.focus({ preventScroll: true });
     }
   }
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || tree) return;
     function place() {
       const element = trigger.current;
       if (!element || element.matches(":disabled")) {
@@ -196,9 +233,12 @@ const DashboardSelect = forwardRef(function DashboardSelect(
       const below = bottom - rect.bottom - 14;
       const above = rect.top - viewTop - 14;
       const useAbove = below < 210 && above > below;
-      const available = Math.max(80, Math.min(360, useAbove ? above : below));
+      const available = Math.max(
+        80,
+        Math.min(tree ? 560 : 360, useAbove ? above : below),
+      );
       const panelWidth = Math.min(
-        Math.max(rect.width, 260),
+        Math.max(rect.width, tree ? 340 : 260),
         Math.max(100, width - 20),
       );
       setPosition({
@@ -222,7 +262,7 @@ const DashboardSelect = forwardRef(function DashboardSelect(
           "#145d52",
         fontFamily: computed.fontFamily,
         fontSize: computed.fontSize,
-        direction: computed.direction,
+        direction: tree ? "rtl" : computed.direction,
       });
     }
     function outside(event) {
@@ -254,9 +294,16 @@ const DashboardSelect = forwardRef(function DashboardSelect(
       window.removeEventListener("scroll", place, true);
       window.visualViewport?.removeEventListener("resize", place);
     };
-  }, [open, canSearch, id]);
+  }, [open, canSearch, id, tree]);
 
   function keys(event) {
+    if (tree) {
+      if (!open && ["ArrowDown", "ArrowUp"].includes(event.key)) {
+        event.preventDefault();
+        show();
+      }
+      return;
+    }
     if (event.key === "Escape" && open) {
       event.preventDefault();
       event.stopPropagation();
@@ -267,7 +314,9 @@ const DashboardSelect = forwardRef(function DashboardSelect(
         show();
         return;
       }
-      const candidates = rows.filter((row) => !row.disabled);
+      const candidates = tree
+        ? rows.filter((row) => row.value || !row.disabled)
+        : rows.filter((row) => !row.disabled);
       if (!candidates.length) return;
       const at = candidates.findIndex((row) => row.index === active);
       const next =
@@ -281,6 +330,35 @@ const DashboardSelect = forwardRef(function DashboardSelect(
       popup.current
         ?.querySelector(`[data-index="${candidates[next].index}"]`)
         ?.scrollIntoView?.({ block: "nearest" });
+    } else if (
+      tree &&
+      open &&
+      ["ArrowLeft", "ArrowRight"].includes(event.key)
+    ) {
+      event.preventDefault();
+      const row = rows.find((item) => item.index === active);
+      if (!row) {
+        if (rows.length) setActive(rows[0].index);
+        return;
+      }
+      if (query.trim()) return;
+      const expandKey =
+        appearance.direction === "rtl" ? "ArrowLeft" : "ArrowRight";
+      if (event.key === expandKey) {
+        if (row.hasChildren && !row.expanded) toggleBranch(row);
+        else {
+          const child = rows.find((item) => item.parent === row.value);
+          if (child) setActive(child.index);
+        }
+      } else if (row.hasChildren && row.expanded) toggleBranch(row);
+      else {
+        const parent = rows.find((item) => item.value === row.parent);
+        if (parent) setActive(parent.index);
+      }
+    } else if (tree && open && ["Home", "End"].includes(event.key)) {
+      event.preventDefault();
+      const row = event.key === "Home" ? rows[0] : rows.at(-1);
+      if (row) setActive(row.index);
     } else if (open && event.key === "Enter") {
       event.preventDefault();
       const row = rows.find((item) => item.index === active);
@@ -309,7 +387,7 @@ const DashboardSelect = forwardRef(function DashboardSelect(
 
   return (
     <span
-      className={`ds-control ${className}`}
+      className={`ds-control ${tree ? "ds-tree-control" : ""} ${className}`}
       style={style}
       ref={host}
       onKeyDown={keys}
@@ -344,7 +422,7 @@ const DashboardSelect = forwardRef(function DashboardSelect(
         disabled={model.disabled}
         role="combobox"
         aria-expanded={open}
-        aria-haspopup="listbox"
+        aria-haspopup={tree ? "dialog" : "listbox"}
         aria-controls={`${id}-list`}
         aria-label={model.label}
         aria-required={props.required || undefined}
@@ -355,6 +433,20 @@ const DashboardSelect = forwardRef(function DashboardSelect(
         }
         onClick={() => (open ? close() : show())}
       >
+        {tree && (
+          <svg
+            className="ds-tree-trigger-folder"
+            width="21"
+            height="21"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            aria-hidden="true"
+          >
+            <path d="M3 5h6l2 2h10v12H3Z" />
+          </svg>
+        )}
         <span className="ds-value">
           {selected.map((row) => row.label).join("، ") || "انتخاب کنید"}
         </span>
@@ -375,11 +467,26 @@ const DashboardSelect = forwardRef(function DashboardSelect(
           <path d="m6 9 6 6 6-6" />
         </svg>
       </button>
+      {tree &&
+        open &&
+        createPortal(
+          <CategoryCardDialog
+            rows={model.rows}
+            label={model.label}
+            onChoose={choose}
+            onClose={() => close(true)}
+            renderCreate={renderCategoryCreate}
+            multiple={props.multiple}
+            nested={Boolean(native.current?.closest(".ccd-dialog"))}
+          />,
+          document.body,
+        )}
       {open &&
+        !tree &&
         createPortal(
           <div
             ref={popup}
-            className="ds-popup"
+            className={`ds-popup ${tree ? "ds-tree-popup" : ""}`}
             style={{
               ...position,
               ...appearance,
@@ -406,7 +513,16 @@ const DashboardSelect = forwardRef(function DashboardSelect(
                   ref={search}
                   type="search"
                   value={query}
-                  placeholder="جست‌وجو در گزینه‌ها…"
+                  placeholder={
+                    tree ? "جست‌وجوی دسته‌بندی…" : "جست‌وجو در گزینه‌ها…"
+                  }
+                  role={tree ? "combobox" : undefined}
+                  aria-expanded={tree ? open : undefined}
+                  aria-haspopup={tree ? "tree" : undefined}
+                  aria-controls={tree ? `${id}-list` : undefined}
+                  aria-activedescendant={
+                    tree && active >= 0 ? `${id}-${active}` : undefined
+                  }
                   aria-label={`جست‌وجو در ${model.label}`}
                   onChange={(event) => {
                     setQuery(event.target.value);
@@ -417,37 +533,115 @@ const DashboardSelect = forwardRef(function DashboardSelect(
             )}
             <div
               id={`${id}-list`}
-              role="listbox"
+              role={tree ? "tree" : "listbox"}
               aria-label={model.label}
               aria-multiselectable={props.multiple || undefined}
               className="ds-options"
             >
-              {rows.map((row) => (
-                <button
-                  key={row.index}
-                  id={`${id}-${row.index}`}
-                  type="button"
-                  tabIndex={-1}
-                  role="option"
-                  data-index={row.index}
-                  aria-selected={row.selected}
-                  disabled={row.disabled}
-                  className={`ds-option ${row.selected ? "is-selected" : ""} ${active === row.index ? "is-keyboard" : ""}`}
-                  onClick={() => choose(row)}
-                >
-                  <span>
-                    <span className="ds-option-label">{row.label}</span>
-                    {(row.description || row.group) && (
-                      <small>{row.description || row.group}</small>
-                    )}
-                  </span>
-                  <span className="ds-tick" aria-hidden="true">
-                    {row.selected ? "✓" : ""}
-                  </span>
-                </button>
-              ))}
+              {tree
+                ? rows.map((row) => (
+                    <div
+                      key={row.index}
+                      id={`${id}-${row.index}`}
+                      data-index={row.index}
+                      role="treeitem"
+                      aria-level={row.depth + 1}
+                      aria-posinset={row.pos}
+                      aria-setsize={row.total}
+                      aria-expanded={row.hasChildren ? row.expanded : undefined}
+                      aria-selected={row.selected}
+                      aria-disabled={row.disabled || undefined}
+                      className={`ds-tree-row ${row.selected ? "is-selected" : ""} ${active === row.index ? "is-keyboard" : ""}`}
+                      style={{ "--tree-depth": row.depth }}
+                    >
+                      {row.hasChildren ? (
+                        <button
+                          type="button"
+                          tabIndex={-1}
+                          className="ds-tree-expand"
+                          aria-label={`${row.expanded ? "بستن" : "نمایش"} زیر‌دسته‌های ${row.label}`}
+                          aria-expanded={row.expanded}
+                          disabled={Boolean(query.trim())}
+                          onClick={() => toggleBranch(row)}
+                        >
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            aria-hidden="true"
+                          >
+                            <path
+                              d={
+                                row.expanded ? "m6 9 6 6 6-6" : "m14 6-6 6 6 6"
+                              }
+                            />
+                          </svg>
+                        </button>
+                      ) : (
+                        <span className="ds-tree-spacer" aria-hidden="true" />
+                      )}
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        className="ds-tree-label"
+                        disabled={row.disabled}
+                        onClick={() => choose(row)}
+                        aria-label={`انتخاب ${row.label}`}
+                      >
+                        <svg
+                          className="ds-tree-folder"
+                          width="21"
+                          height="21"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M3 5h6l2 2h10v12H3Z" />
+                        </svg>
+                        <span>{row.label}</span>
+                        <span className="ds-tick" aria-hidden="true">
+                          {row.selected ? "✓" : ""}
+                        </span>
+                      </button>
+                    </div>
+                  ))
+                : rows.map((row) => (
+                    <button
+                      key={row.index}
+                      id={`${id}-${row.index}`}
+                      type="button"
+                      tabIndex={-1}
+                      role="option"
+                      data-index={row.index}
+                      aria-selected={row.selected}
+                      disabled={row.disabled}
+                      className={`ds-option ${row.selected ? "is-selected" : ""} ${active === row.index ? "is-keyboard" : ""}`}
+                      onClick={() => choose(row)}
+                    >
+                      <span>
+                        <span className="ds-option-label">{row.label}</span>
+                        {(row.description || row.group) && (
+                          <small>{row.description || row.group}</small>
+                        )}
+                      </span>
+                      <span className="ds-tick" aria-hidden="true">
+                        {row.selected ? "✓" : ""}
+                      </span>
+                    </button>
+                  ))}
               {!rows.length && <p className="ds-empty">گزینه‌ای پیدا نشد.</p>}
             </div>
+            {tree && (
+              <p className="ds-tree-hint">
+                برای انتخاب، روی نام دسته کلیک کنید.
+              </p>
+            )}
             {props.multiple && (
               <button
                 type="button"

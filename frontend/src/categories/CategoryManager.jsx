@@ -1,3 +1,4 @@
+import { CategoryImageEditor, HomeCategoriesEditor } from "./CategoryShowcase";
 import DashboardSelect from "../components/DashboardSelect";
 import CategoryRules from "../catalog/CategoryRules";
 import { useUnsaved } from "../catalog/shared";
@@ -122,6 +123,16 @@ function CategoryNode({ node, query, onAdd, onEdit, canAdd, canEdit }) {
         >
           {node.children.length ? (showChildren ? "−" : "+") : "·"}
         </button>
+        {node.image_url ? (
+          <img
+            className="csh-node-image"
+            src={node.image_url}
+            alt=""
+            loading="lazy"
+          />
+        ) : (
+          <span className="csh-node-image csh-node-empty">بدون عکس</span>
+        )}
         <div className="dc-node-label">
           <strong>{node.name}</strong>
           <small>
@@ -311,6 +322,7 @@ function CategoryForm({ editor, rows, onCancel, onSaved }) {
               <label className="dc-field">
                 <span>دستهٔ بالاتر</span>
                 <DashboardSelect
+                  tree
                   value={parentId}
                   onChange={(event) => setParentId(event.target.value)}
                 >
@@ -322,6 +334,7 @@ function CategoryForm({ editor, rows, onCancel, onSaved }) {
                         key={row.id}
                         value={row.id}
                         data-path={pathFor(row, rows)}
+                        data-parent={row.parent_id ?? ""}
                       >
                         {row.name}
                       </option>
@@ -373,6 +386,14 @@ function CategoryForm({ editor, rows, onCancel, onSaved }) {
           </div>
         </fieldset>
       </form>
+      {editing && (
+        <CategoryImageEditor category={editor.record} onSaved={onSaved} />
+      )}
+      {!editing && (
+        <p className="dc-empty">
+          پس از ساخت دسته، بخش بارگذاری عکس همین‌جا باز می‌شود.
+        </p>
+      )}
       {editing && <CategoryRules categoryId={editor.record.id} />}
     </section>
   );
@@ -456,6 +477,15 @@ export default function CategoryManager({ resource, revision }) {
           </button>
         )}
       </div>
+      {!loading && (
+        <div hidden={Boolean(editor)}>
+          <HomeCategoriesEditor
+            rows={rows}
+            canChange={Boolean(resource.capabilities?.change)}
+            onEdit={edit}
+          />
+        </div>
+      )}
       {notice && (
         <p className="dc-notice" role="status">
           {notice}
@@ -499,7 +529,7 @@ export default function CategoryManager({ resource, revision }) {
             setEditor({ record: saved });
             setSearch(saved.name);
             setNotice(
-              `«${saved.name}» ذخیره شد. حالا می‌توانید مشخصات محصولات این دسته را پایین فرم تعیین کنید.`,
+              `«${saved.name}» ذخیره شد. حالا می‌توانید عکس و مشخصات این دسته را پایین فرم مدیریت کنید.`,
             );
           }}
         />

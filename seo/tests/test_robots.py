@@ -18,6 +18,11 @@ def test_robots_allows_crawling_when_enabled(client):
     settings = SEOSettings.get_settings()
     settings.allow_crawling = True
     settings.save()
+    # Live robots is now the published document, not the legacy boolean.
+    from seo.services.robots_service import current_document
+    row = current_document()
+    row.published = {"version": 1, "groups": [{"id": "all", "agent": "*", "enabled": True, "rules": []}], "sitemaps": []}
+    row.save()
 
     response = client.get(reverse("robots_txt"))
 

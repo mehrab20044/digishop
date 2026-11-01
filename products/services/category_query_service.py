@@ -1,9 +1,8 @@
 from collections import defaultdict
 
 from django.db.models import Exists, OuterRef, Q
-from rest_framework.exceptions import ValidationError
-
 from products.models import Category, Product
+from rest_framework.exceptions import ValidationError
 
 MAX_SELECTED_CATEGORIES = 10
 
@@ -21,6 +20,9 @@ def category_graph():
             "parent_id",
             "description",
             "sort_order",
+            "image",
+            "is_home_featured",
+            "home_featured_order",
         )
     )
 
@@ -125,12 +127,17 @@ def public_category_tree():
         ).order_by("sort_order", "name", "id")
     }
 
+    from products.services.category_showcase_service import category_image_url
+
     nodes = {
         row["id"]: {
             "id": row["id"],
             "name": row["name"],
             "slug": row["slug"],
             "parent_id": row["parent_id"],
+            "image_url": category_image_url(row["image"]),
+            "is_home_featured": row["is_home_featured"],
+            "home_featured_order": row["home_featured_order"],
             "url": "/products/category/" + quote(paths[row["id"]], safe="/"),
             "description": row["description"],
             "sort_order": row["sort_order"],

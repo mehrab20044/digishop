@@ -1,17 +1,13 @@
 from django.http import HttpResponse
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_safe
 
-from .models import SEOSettings
+from seo.services.robots_service import current_document
+from seo.services.robots_engine import render_document
 
 
-@require_GET
+@require_safe
 def robots_txt(request):
-    settings = SEOSettings.get_settings()
-
-    if settings.allow_crawling:
-        content = "User-agent: *\nAllow: /\n"
-    else:
-        content = "User-agent: *\nDisallow: /\n"
+    content = render_document(current_document().published)
 
     response = HttpResponse(
         content,

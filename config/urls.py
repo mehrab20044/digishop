@@ -35,6 +35,8 @@ from cms.views import (
     public_theme,
     theme_styles,
 )
+from seo.canonical_views import canonical_metadata, storefront_document
+
 from dashboard.api.v1.customer_operations import CustomerOperationsView
 from products.category_url_views import (
     category_page,
@@ -48,6 +50,14 @@ admin.site.index_title = "مدیریت فروشگاه"
 
 
 urlpatterns = [
+    path("api/v1/seo/canonical/", canonical_metadata, name="canonical-metadata"),
+    path("", storefront_document, name="storefront-document"),
+    path("products", storefront_document),
+    path("products/", storefront_document),
+    path("products/<int:pk>", storefront_document),
+    path("products/<int:pk>/", storefront_document),
+    path("categories", storefront_document),
+    path("categories/", storefront_document),
     path("api/v1/customer/", include("accounts.api.v1.customer_hub_urls")),
     path("api/v1/content/footer/", public_footer),
     path("pages-assets/store-footer.css", footer_styles),

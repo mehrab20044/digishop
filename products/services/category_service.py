@@ -17,17 +17,21 @@ EDITABLE_FIELDS = {
     "sort_order",
     "parent_id",
     "related_category_ids",
+    "is_home_featured",
+    "home_featured_order",
 }
 
 
 @contextmanager
 def category_tree_write_lock():
     """
+
     Acquire before reading or locking categories for a structural change.
 
     All category-writing entry points must follow this convention.
     The lock is released when the surrounding transaction ends.
     """
+
     with transaction.atomic():
         if connection.vendor != "postgresql":
             raise RuntimeError(
@@ -100,7 +104,19 @@ def save_category(*, data, category_id=None):
             raise ValidationError({
                 "sort_order": "ترتیب نمایش باید عدد صحیح نامنفی باشد.",
             })
+        if "is_home_featured" in data:
+            if type(data["is_home_featured"]) is not bool:
+                raise ValidationError({
+                    "is_home_featured": "مقدار باید true یا false باشد."
+                })
 
+        if "home_featured_order" in data:
+            order = data["home_featured_order"]
+
+            if type(order) is not int or not 0 <= order <= 4:
+                raise ValidationError({
+                    "home_featured_order": "ترتیب باید عددی بین ۰ تا ۴ باشد."
+                })
     related_ids = None
 
     if "related_category_ids" in data:
@@ -121,10 +137,43 @@ def save_category(*, data, category_id=None):
             "description",
             "sort_order",
             "parent_id",
+            "is_home_featured",
+            "home_featured_order",
         ):
             if field in data:
                 setattr(category, field, data[field])
+            if category.is_home_featured:
+                featured_count = (
+                    Category.objects
+                    .filter(is_home_featured=True)
+                    .exclude(pk=category.pk)
+                    .count()
+                )
 
+                if featured_count >= 5:
+                    raise ValidationError({
+                        "is_home_featured": (
+                            "حداکثر پنج دسته‌بندی می‌توانند "
+                            "در صفحه اصلی نمایش داده شوند."
+                        )
+                    })
+
+                order_exists = (
+                    Category.objects
+                    .filter(
+                        is_home_featured=True,
+                        home_featured_order=category.home_featured_order,
+                    )
+                    .exclude(pk=category.pk)
+                    .exists()
+                )
+
+                if order_exists:
+                    raise ValidationError({
+                        "home_featured_order": (
+                            "این جایگاه قبلاً انتخاب شده است."
+                        )
+                    })
         if related_ids is not None:
             if category.pk is not None and category.pk in related_ids:
                 raise ValidationError({

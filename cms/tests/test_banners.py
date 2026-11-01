@@ -22,6 +22,22 @@ class BannerTests(TestCase):
         self.actor = user(is_staff=True, is_superuser=True)
 
     def publish(self, rows):
+        from cms.models import PageImage
+
+        image = PageImage.objects.create(
+            file="cms/tests/banner.webp",
+            width=1,
+            height=1,
+            uploaded_by=self.actor,
+        )
+        rows = [
+            {
+                **item,
+                "image_id": item.get("image_id") or str(image.pk),
+                "alt": item.get("alt") or "تصویر بنر آزمایشی",
+            }
+            for item in rows
+        ]
         row = update_banners(self.actor, get_banners().revision, rows)
         return update_banners(self.actor, row.revision, publish=True)
 

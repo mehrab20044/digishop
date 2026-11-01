@@ -1,0 +1,429 @@
+.dcc-overlay {
+  --dcc-accent: var(--cw-accent, var(--blue, #3858e9));
+  position: fixed;
+  inset: 0;
+  z-index: 2147470000;
+  background: rgb(16 28 49 / 0.48);
+  backdrop-filter: blur(5px);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: #233047;
+  font-family: inherit;
+  direction: rtl;
+}
+.dcc-dialog {
+  width: min(920px, 100%);
+  max-height: calc(100dvh - 48px);
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #e1e6ef;
+  border-radius: 24px;
+  box-shadow: 0 30px 110px #10203f40;
+  overflow: hidden;
+  animation: dcc-enter 0.18s ease-out;
+}
+.dcc-dialog * {
+  box-sizing: border-box;
+  font-family: inherit;
+}
+.dcc-dialog button {
+  cursor: pointer;
+}
+.dcc-dialog button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.dcc-dialog button:focus-visible,
+.dcc-search:focus-within {
+  outline: 2px solid var(--dcc-accent);
+  outline-offset: 3px;
+}
+.dcc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 16px;
+  padding: 28px 28px 8px;
+}
+.dcc-head h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 750;
+}
+.dcc-head p {
+  margin: 10px 0;
+  font-size: 12px;
+  color: #7e8a9e;
+  line-height: 1.8;
+}
+.dcc-close {
+  border: 0;
+  background: #f3f5f9;
+  border-radius: 10px;
+  width: 34px;
+  height: 34px;
+  font-size: 24px;
+  color: #68768c;
+}
+.dcc-navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 28px;
+}
+.dcc-navigation nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.dcc-navigation nav > span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.dcc-navigation nav button {
+  border: 0;
+  background: #f1f4f9;
+  color: #52617a;
+  border-radius: 9px;
+  padding: 9px 12px;
+  font-size: 12px;
+}
+.dcc-navigation nav button[aria-current] {
+  background: color-mix(in srgb, var(--dcc-accent) 13%, white);
+  color: var(--dcc-accent);
+  font-weight: 700;
+}
+.dcc-back {
+  flex: none;
+  border: 1px solid #dce3ef;
+  border-radius: 10px;
+  background: white;
+  padding: 9px 13px;
+  font-size: 12px;
+  color: #536279;
+}
+.dcc-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #dce3ed;
+  border-radius: 12px;
+  margin: 4px 28px 14px;
+  padding: 0 13px;
+  color: #8491a5;
+  flex: none;
+}
+.dcc-search input {
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  padding: 10px 0;
+  font-size: 13px;
+  color: #233047;
+}
+.dcc-body {
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 10px 28px 26px;
+  min-height: 160px;
+  scrollbar-width: thin;
+  scrollbar-color: #d9e0ec transparent;
+}
+.dcc-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 16px;
+}
+.dcc-heading h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.dcc-heading > span {
+  color: #8b97a8;
+  font-size: 11px;
+}
+.dcc-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 13px;
+}
+.dcc-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  text-align: start;
+  gap: 12px;
+  min-width: 0;
+  min-height: 130px;
+  padding: 14px;
+  border: 1px solid #e0e6f0;
+  border-radius: 15px;
+  background: #fff;
+  color: #243147;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    transform 0.15s;
+}
+.dcc-card:hover {
+  border-color: var(--dcc-accent);
+  box-shadow: 0 5px 20px #26365b0d;
+  transform: translateY(-2px);
+}
+.dcc-card.is-selected {
+  border-color: var(--dcc-accent);
+}
+.dcc-art {
+  width: 74px;
+  height: 84px;
+  flex: none;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: #f1f4fa;
+  color: var(--dcc-accent);
+  overflow: hidden;
+}
+.dcc-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.dcc-card-copy {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+.dcc-card strong {
+  font-size: 14px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.dcc-card small {
+  font-size: 10px;
+  color: #8591a5;
+  line-height: 1.8;
+}
+.dcc-card-arrow {
+  margin-inline-start: auto;
+  color: #687993;
+  font-size: 24px;
+}
+.dcc-selected-mark {
+  position: absolute;
+  top: 7px;
+  inset-inline-end: 8px;
+  width: 19px;
+  height: 19px;
+  background: var(--dcc-accent);
+  border-radius: 50%;
+  color: #fff;
+  font-size: 12px;
+  display: grid;
+  place-items: center;
+}
+.dcc-create {
+  min-height: 130px;
+  display: flex;
+}
+.dcc-create > button {
+  width: 100%;
+  border: 1px dashed #bac8e0;
+  border-radius: 15px;
+  background: #f9faff;
+  color: var(--dcc-accent);
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+.dcc-create > button:before {
+  content: "+";
+  width: 36px;
+  height: 36px;
+  background: #edf1fa;
+  border-radius: 50%;
+  font-size: 26px;
+  display: grid;
+  place-items: center;
+}
+.dcc-empty {
+  font-size: 12px;
+  line-height: 1.9;
+  color: #8995a7;
+  text-align: center;
+  margin: 24px 0;
+}
+.dcc-footer {
+  border-top: 1px solid #e8edf4;
+  padding: 18px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex: none;
+  background: #fcfdff;
+}
+.dcc-current {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.dcc-current small {
+  font-size: 10px;
+  color: #8b97a8;
+}
+.dcc-current strong {
+  font-size: 13px;
+  color: var(--dcc-accent);
+  overflow-wrap: anywhere;
+}
+.dcc-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.dcc-actions button {
+  padding: 12px 15px;
+  min-height: 44px;
+  border-radius: 11px;
+  font-size: 12px;
+}
+.dcc-confirm {
+  border: 1px solid transparent;
+  background: var(--dcc-accent);
+  color: white;
+}
+.dcc-clear,
+.dcc-cancel {
+  border: 1px solid #dce3ed;
+  background: white;
+  color: #64738a;
+}
+/* A creation form opened from the cards must sit above the category dialog. */
+body .ccd-overlay {
+  z-index: 2147471000;
+}
+@keyframes dcc-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (max-width: 760px) {
+  .dcc-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dcc-art {
+    width: 58px;
+    height: 68px;
+  }
+  .dcc-card {
+    min-height: 110px;
+    padding: 10px;
+    gap: 9px;
+  }
+  .dcc-card strong {
+    font-size: 13px;
+  }
+}
+@media (max-width: 500px) {
+  .dcc-overlay {
+    padding: 10px;
+  }
+  .dcc-dialog {
+    max-height: calc(100dvh - 20px);
+    border-radius: 18px;
+  }
+  .dcc-head {
+    padding: 20px 16px 4px;
+  }
+  .dcc-head h2 {
+    font-size: 19px;
+  }
+  .dcc-navigation {
+    padding: 10px 16px;
+    align-items: start;
+  }
+  .dcc-navigation nav button {
+    font-size: 11px;
+    padding: 7px 9px;
+  }
+  .dcc-search {
+    margin: 4px 16px 12px;
+  }
+  .dcc-body {
+    padding: 8px 16px 18px;
+  }
+  .dcc-grid {
+    gap: 10px;
+  }
+  .dcc-card {
+    flex-direction: column;
+    text-align: center;
+    min-height: 150px;
+  }
+  .dcc-card-arrow {
+    display: none;
+  }
+  .dcc-card-copy {
+    gap: 3px;
+  }
+  .dcc-art {
+    width: 68px;
+    height: 60px;
+  }
+  .dcc-create {
+    min-height: 150px;
+  }
+  .dcc-footer {
+    padding: 14px 16px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .dcc-current {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .dcc-actions {
+    flex-wrap: nowrap;
+  }
+  .dcc-confirm {
+    flex: 1;
+  }
+  .dcc-actions button {
+    padding: 10px;
+    font-size: 11px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dcc-dialog {
+    animation: none;
+  }
+  .dcc-card {
+    transition: none;
+  }
+  .dcc-card:hover {
+    transform: none;
+  }
+}

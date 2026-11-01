@@ -1,3 +1,4 @@
+import CanonicalHead from "./seo/CanonicalHead";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -37,5 +38,8 @@ if (pathname === "/login") {
 }
 
 createRoot(document.getElementById("root")).render(
-  <StrictMode>{screen}</StrictMode>,
+  <StrictMode>
+    <CanonicalHead />
+    {screen}
+  </StrictMode>,
 );

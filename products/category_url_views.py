@@ -10,6 +10,9 @@ from django.http import (
 from django.utils.html import escape
 from django.views.decorators.http import require_GET
 
+from seo.services.canonical_service import canonical_document, public_origin
+from seo.canonical_views import inject_canonical
+
 from products.models import Category
 from products.services.category_url_service import PREFIX, current_paths, resolve_path
 
@@ -45,7 +48,10 @@ def category_resolve(request):
 @require_GET
 def category_sitemap(request):
     paths = current_paths()
-    entries = "".join("<url><loc>" + str(escape(request.build_absolute_uri(PREFIX + quote(path, safe="/")))) + "</loc></url>" for path in paths.values())
+    from seo.services.page_rules import sitemap_ids
+    permitted = sitemap_ids("category", paths)
+    paths = {pk: path for pk, path in paths.items() if pk in permitted}
+    entries = "".join("<url><loc>" + str(escape(public_origin(request) + PREFIX + quote(path, safe="/"))) + "</loc></url>" for path in paths.values())
     return HttpResponse('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + entries + '</urlset>', content_type="application/xml")
 
 
@@ -64,10 +70,11 @@ def category_page(request, path):
     html = index.read_text(encoding="utf-8")
     import re
     html = re.sub(r"<title>.*?</title>", "", html, flags=re.S)
-    canonical = request.build_absolute_uri(url)
+    seo = canonical_document(request, request.get_full_path())
+    canonical = seo["canonical"]
     head = f'<title>{escape(category.name)} | دیجی‌شاپ</title><link rel="canonical" href="{escape(canonical)}"><meta name="description" content="{escape(category.description or category.name)}">'
     structured = {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
-        {"@type": "ListItem", "position": index, "name": part["name"], "item": request.build_absolute_uri(part["url"])}
+        {"@type": "ListItem", "position": index, "name": part["name"], "item": public_origin(request) + part["url"]}
         for index, part in enumerate(breadcrumbs(category), 1)
     ]}
     head += '<script type="application/ld+json">' + json.dumps(structured, ensure_ascii=False).replace("<", "\\u003c") + '</script>'
@@ -75,4 +82,4 @@ def category_page(request, path):
     if category.description.strip():
         content = f'<section class="sf-category-description"><h2>دربارهٔ {escape(category.name)}</h2><p style="white-space:pre-wrap">{escape(category.description)}</p></section>'
         html = html.replace('<div id="root"></div>', '<div id="root">' + content + '</div>')
-    return HttpResponse(html)
+    return HttpResponse(inject_canonical(html, seo))
